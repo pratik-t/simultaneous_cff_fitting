@@ -1,4 +1,4 @@
-﻿bin,k,q_squared,t,x_b,W,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,link
+﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,link
 ,,7.5,,,89,,5.42,0.33,0.33,0.29,0.34,https://doi.org/10.1016/j.physletb.2003.08.048
 ,,12.5,,,89,,2.64,0.22,0.22,0.11,0.13,
 ,,20,,,89,,1.23,0.14,0.14,0.05,0.07,

@@ -1,4 +1,4 @@
-﻿bin,k,q_squared,t,x_b,W,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,Helc_diff_D^4_sigma [pb_GeV^-4],Helc_diff_D^4_sigma_stat_plus,Helc_diff_D^4_sigma_stat_minus,Helc_diff_D^4_sigma_sys_plus,Helc_diff_D^4_sigma_sys_minus,link
+﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,Helc_diff_D^4_sigma [pb_GeV^-4],Helc_diff_D^4_sigma_stat_plus,Helc_diff_D^4_sigma_stat_minus,Helc_diff_D^4_sigma_sys_plus,Helc_diff_D^4_sigma_sys_minus,link
 ,2.94,1.82,0.172,0.343,,7.5,,,,,,-1,6,6,1,1.1,https://doi.org/10.1103/PhysRevC.92.055202
 ,2.94,1.82,0.172,0.343,,22.5,,,,,,12.2,5.7,5.7,2.3,0,
 ,2.94,1.82,0.172,0.343,,37.5,,,,,,16.8,4.9,4.9,2.6,0.5,
