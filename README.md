@@ -80,7 +80,7 @@
     | bin | ${k}$ | $Q^{2}$ | $\sigma\  [nb]$ |
     | --- | --- | --- | --- |
   - dvcs_hermes_2009_tab3.csv :
-    | bin | ${k}$ | $Q^{2}$ | $\phi$ | $d\sigma/dt\  [nb/GeV^{2}]$ |
+    | bin | ${k}$ | $Q^{2}$ | $\phi$ | $\sigma\  [nb]$ |
     | --- | --- | --- | --- | --- |
   - dvcs_hermes_2009_tab4.csv :
     | bin | ${k}$ | $Q^{2}$ | $W$ | $d\sigma/dt\  [nb/GeV^{2}]$ |
