@@ -1,4 +1,4 @@
-﻿bin,k,q_squared,t,x_b,W,phi,sigma,sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,BSA,BSA_stat_plus,BSA_stat_minus,BSA_sys_plus,BSA_sys_minus,TSA,TSA_stat_plus,TSA_stat_minus,TSA_sys_plus,TSA_sys_minus,cAUT,DSA,DSA_stat_plus,DSA_stat_minus,DSA_sys_plus,DSA_sys_minus,cALT,link
+﻿bin,k,q_squared,t,x_b,w,phi,sigma,sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,BSA,BSA_stat_plus,BSA_stat_minus,BSA_sys_plus,BSA_sys_minus,TSA,TSA_stat_plus,TSA_stat_minus,TSA_sys_plus,TSA_sys_minus,cAUT,DSA,DSA_stat_plus,DSA_stat_minus,DSA_sys_plus,DSA_sys_minus,cALT,link
 ,,1.68,0.11,0.194,,25,,,,,,0.37,0.23,0.23,0.01,0.01,0.44,0.26,0.26,0.02,0.02,0.0018,0.58,0.33,0.33,0.04,0.04,0.0116,https://doi.org/10.1103/PhysRevD.91.052014
 ,,1.68,0.12,0.19,,60,,,,,,0.34,0.11,0.11,0.03,0.03,0.12,0.14,0.14,0.02,0.02,0.0024,0.34,0.16,0.16,0.13,0.13,0.007,
 ,,1.58,0.13,0.186,,92,,,,,,0.23,0.06,0.06,0.01,0.01,0.18,0.07,0.07,0.01,0.01,0.0144,0.58,0.08,0.08,0.02,0.02,0.0072,

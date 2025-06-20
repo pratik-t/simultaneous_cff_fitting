@@ -1,4 +1,4 @@
-﻿bin,k,q_squared,t,x_b,W,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,ALU,del_ALU,link
+﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,ALU,del_ALU,link
 ,,1.22,0.23,0.17,,1.5,,,,,,-0.0051,0.0056,https://doi.org/10.1103/PhysRevC.80.035206
 ,,1.22,0.23,0.17,,6.5,,,,,,0.0289,0.0139,
 ,,1.22,0.23,0.17,,22.5,,,,,,0.0794,0.0221,

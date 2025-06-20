@@ -1,4 +1,4 @@
-﻿bin,k,q_squared,t,x_b,W,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,ALU_sin_PHI,ALU_sin_PHI_sys_plus,ALU_sin_PHI_sys_minus,ALU_sin_PHI_stat_plus,ALU_sin_PHI_stat_minus,link
+﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,ALU_sin_PHI,ALU_sin_PHI_sys_plus,ALU_sin_PHI_sys_minus,ALU_sin_PHI_stat_plus,ALU_sin_PHI_stat_minus,link
 1,,2.13,0.037,0.084,,,,,,,,-0.342,0.047,0.047,0.016,0.016,https://doi.org/10.1007/JHEP10(2012)042
 2,,2.51,0.095,0.1,,,,,,,,-0.256,0.045,0.045,0.014,0.014,
 3,,3.01,0.201,0.115,,,,,,,,-0.409,0.053,0.053,0.015,0.015,
