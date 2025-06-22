@@ -57,7 +57,7 @@ def format_header(name):
     if name == 'D5_sigma':
         return r'$d^{5}\sigma/(dk_{lab}\ d\Omega_{e_{lab}}\ d\Omega_{p_{c.m.}})\ [fb/(MeV\ sr^{2})]$'
     if name == 'D2_sigma_d_omega (nb/sr)':
-        return r'$d^{2}\sigma/d\Omega_{p_{cm}}\  [nb/sr]$'
+        return r'$d^{2}\sigma/d\Omega_{p_{c.m.}}\  [nb/sr]$'
     if name == 'D^4_sigma [pb_GeV^-4]':
         return r'$d^{4}\sigma/(dQ^{2}\ dt\ dx_{B}\ d\phi)\ [pb/GeV^{4}]$'
     if name == 'D4_sigma (nb/Gev^4)':
@@ -89,7 +89,7 @@ def format_header(name):
 
 def process_csv_folder(folder_path, output_md):
     """
-    Scan folder_path for CSVs, group them by their first 'link' entry, and write a Markdown report.
+    Scan folder_path for CSVs, group them by their first 'link' entry, and write a Markdown.
     """
     link_groups = {}
 
@@ -105,7 +105,6 @@ def process_csv_folder(folder_path, output_md):
                 first_link = links[0]
         link_groups.setdefault(first_link, []).append((filename, non_empty_cols))
 
-    # Write Markdown report
     with open(output_md, 'w', encoding='utf-8') as md:
         md.write('# Data Summary\n\n')
         for link, file_list in link_groups.items():
@@ -125,6 +124,6 @@ def process_csv_folder(folder_path, output_md):
 
 
 if __name__ == '__main__':
-    folder_path = './data'  # Folder containing your CSV files
-    output_md = 'README.md'
+    folder_path = './data'
+    output_md = 'Data Summary.md'
     process_csv_folder(folder_path, output_md)
