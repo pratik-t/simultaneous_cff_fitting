@@ -1,0 +1,2 @@
+## Exposition:
+The data that we are using in this project comes from academic papers that report experimental findings. While the extraction of the data may be easy, it is worthwhile to prove to ourselves that the extracted data yields the same corresponding figures that may also be reported in the paper. Additionally, we want to be able to plot the data visually so that we can prove to ourselves later that the pseudodata sampling method is executing correctly.
