@@ -20,7 +20,7 @@ import pandas as pd
 DATA_FOLDER_PATH = '../data'
 
 # (2): Define static string that will be the *name* of the output `.md`:
-OUTPUT_MARKDOWN_FILE_NAME = 'DATA.md'
+OUTPUT_MARKDOWN_FILE_NAME = 'README.md'
 
 def get_non_empty_columns(df: pd.DataFrame) -> list:
     """
