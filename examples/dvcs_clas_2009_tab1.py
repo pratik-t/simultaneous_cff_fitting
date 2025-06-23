@@ -32,8 +32,9 @@ axis.errorbar(
     x = fixed_kinematic_set_dataframe['phi'],
     y = fixed_kinematic_set_dataframe['ALU'],
     yerr = fixed_kinematic_set_dataframe['del_ALU'],
-    fmt = 'none',
-    marker = "+",
+    linestyle = ":",
+    marker = "o",
+    markersize = 3.5,
     color = "blue")
 
 # (7): Set the x-label:
