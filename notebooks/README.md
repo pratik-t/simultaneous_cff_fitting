@@ -1,0 +1,2 @@
+## Exposition:
+We use Jupyter notebooks to enable the construction of a quick and dirty, proof-of-principle script that will later be integrated into the main code. We also use them to play around with various functions that we need to use and test them.
