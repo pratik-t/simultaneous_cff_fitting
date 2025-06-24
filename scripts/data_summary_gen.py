@@ -16,10 +16,13 @@ import re
 # 3rd Part Library | Pandas:
 import pandas as pd
 
-# (1): Define static string to help script find its entry point:
-DATA_FOLDER_PATH = '../data'
+# (1): Define static string to set current directory:
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# (2): Define static string that will be the *name* of the output `.md`:
+# (2): Define static string to help script find its entry point:
+DATA_FOLDER_PATH = os.path.abspath(os.path.join(script_dir, '..', 'data'))
+
+# (3): Define static string that will be the *name* of the output `.md`:
 OUTPUT_MARKDOWN_FILE_NAME = 'README.md'
 
 def get_non_empty_columns(df: pd.DataFrame) -> list:
@@ -30,7 +33,7 @@ def get_non_empty_columns(df: pd.DataFrame) -> list:
     any systematic or statistical uncertainty columns.
     """
     non_empty = []
-    exclude_pattern = re.compile(r"(_sys_plus|_sys_minus|_stat_plus|_stat_minus|_min|_max)$")
+    exclude_pattern = re.compile(r"(sig_BSA|del_ALU|_sys_plus|_sys_minus|_stat_plus|_stat_minus|_min|_max)$")
     for col in df.columns:
         if col == 'link' or exclude_pattern.search(col):
             continue
@@ -55,19 +58,15 @@ def format_header(name: str) -> str:
         return f'${{{name}}}$'
     if name == 'phi':
         return r'$\phi$'
-    if name == 'del_ALU':
-        return r'$\delta_{A_{LU}}$'
     if name == 'ALU_sin_PHI':
         return r'$A_{LU}^{\sin\phi}$'
     if name == 'ALU_sin_2PHI':
         return r'$A_{LU}^{\sin\ 2\phi}$'
-    if name == 'sig_BSA': 
-        return r'$\delta_{BSA}$'
     if name == 'cAUT':
         return r'$c_{A_{UT}}$'
     if name == 'cALT':
         return r'$c_{A_{LT}}$'
-    if name == 'cos_theta*gamma_gamma (fb/(MeV sr2))':
+    if name == 'cos_theta*gamma_gamma':
         return r'$\cos\theta^{*}_{\gamma\gamma}$'
     if name == 'cos_theta_CM':
         return r'$\cos\theta_{c.m.}$'
@@ -75,20 +74,14 @@ def format_header(name: str) -> str:
         return r'$\sigma\  [nb]$'
     if name == 'dsigma/dt [nb/GeV^2]':
         return r'$d\sigma/dt\  [nb/GeV^{2}]$'
-    if name == 'D5_sigma':
+    if name == 'D5_sigma (fb/(MeV sr2))':
         return r'$d^{5}\sigma/(dk_{lab}\ d\Omega_{e_{lab}}\ d\Omega_{p_{c.m.}})\ [fb/(MeV\ sr^{2})]$'
     if name == 'D2_sigma_d_omega (nb/sr)':
         return r'$d^{2}\sigma/d\Omega_{p_{c.m.}}\  [nb/sr]$'
-    if name == 'D^4_sigma [pb_GeV^-4]':
-        return r'$d^{4}\sigma/(dQ^{2}\ dt\ dx_{B}\ d\phi)\ [pb/GeV^{4}]$'
     if name == 'D4_sigma (nb/Gev^4)':
         return r'$d^{4}\sigma/(dQ^{2}\ dt\ dx_{B}\ d\phi)\ [nb/GeV^{4}]$'
-    if name == 'Helc_diff_D^4_sigma [pb_GeV^-4]':
-        return r'$(d^{4}\sigma^{+}-d^{4}\sigma^{-})\ [pb/GeV^{4}]$'
     if name == 'Helc_diff_D^4_sigma (nb/Gev^4)':
         return r'$(d^{4}\sigma^{+}-d^{4}\sigma^{-})\ [nb/GeV^{4}]$'
-    if name == '1/2 Helc_diff_D^4_sigma [pb_GeV^-4]':
-        return r'$1/2\times(d^{4}\sigma^{+}-d^{4}\sigma^{-})\ [pb/GeV^{4}]$'
     if name == '1/2 Helc_sum_d4_sigma (nb/GeV^4)':
         return r'$1/2\times(d^{4}\sigma^{+}+d^{4}\sigma^{-})\ [nb/GeV^{4}]$'
     if name == '1/2 Helc_diff_d4_sigma (nb/GeV^4)':
