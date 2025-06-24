@@ -2,16 +2,16 @@
 
 - Link: https://doi.org/10.1103/PhysRevLett.130.211902
   - dvcs_CLAS12_2023_tab.csv :
-    | ${k}$ | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | ${BSA}$ | $\delta_{BSA}$ |
-    | --- | --- | --- | --- | --- | --- | --- |
+    | ${k}$ | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | ${BSA}$ |
+    | --- | --- | --- | --- | --- | --- |
 
 - Link: https://doi.org/10.1103/PhysRevC.80.035206
   - dvcs_CLAS_2009_tab1.csv :
-    | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | ${ALU}$ | $\delta_{A_{LU}}$ |
-    | --- | --- | --- | --- | --- | --- |
+    | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | ${ALU}$ |
+    | --- | --- | --- | --- | --- |
   - dvcs_CLAS_2009_tab2.csv :
-    | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | ${ALU}$ | $\delta_{A_{LU}}$ |
-    | --- | --- | --- | --- | --- | --- |
+    | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | ${ALU}$ |
+    | --- | --- | --- | --- | --- |
 
 - Link: https://doi.org/10.1103/PhysRevD.91.052014
   - dvcs_CLAS_2015_tab5.csv :
