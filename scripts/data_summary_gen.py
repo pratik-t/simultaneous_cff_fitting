@@ -16,10 +16,13 @@ import re
 # 3rd Part Library | Pandas:
 import pandas as pd
 
-# (1): Define static string to help script find its entry point:
-DATA_FOLDER_PATH = '../data'
+# (1): Define static string to set current directory:
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# (2): Define static string that will be the *name* of the output `.md`:
+# (2): Define static string to help script find its entry point:
+DATA_FOLDER_PATH = os.path.abspath(os.path.join(script_dir, '..', 'data'))
+
+# (3): Define static string that will be the *name* of the output `.md`:
 OUTPUT_MARKDOWN_FILE_NAME = 'README.md'
 
 def get_non_empty_columns(df: pd.DataFrame) -> list:
@@ -67,7 +70,7 @@ def format_header(name: str) -> str:
         return r'$c_{A_{UT}}$'
     if name == 'cALT':
         return r'$c_{A_{LT}}$'
-    if name == 'cos_theta*gamma_gamma (fb/(MeV sr2))':
+    if name == 'cos_theta*gamma_gamma':
         return r'$\cos\theta^{*}_{\gamma\gamma}$'
     if name == 'cos_theta_CM':
         return r'$\cos\theta_{c.m.}$'
@@ -75,7 +78,7 @@ def format_header(name: str) -> str:
         return r'$\sigma\  [nb]$'
     if name == 'dsigma/dt [nb/GeV^2]':
         return r'$d\sigma/dt\  [nb/GeV^{2}]$'
-    if name == 'D5_sigma':
+    if name == 'D5_sigma (fb/(MeV sr2))':
         return r'$d^{5}\sigma/(dk_{lab}\ d\Omega_{e_{lab}}\ d\Omega_{p_{c.m.}})\ [fb/(MeV\ sr^{2})]$'
     if name == 'D2_sigma_d_omega (nb/sr)':
         return r'$d^{2}\sigma/d\Omega_{p_{c.m.}}\  [nb/sr]$'
