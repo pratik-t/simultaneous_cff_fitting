@@ -1,4 +1,4 @@
-﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,D4_sigma (nb/Gev^4),D^4_sigma_stat_plus,D^4_sigma_stat_minus,D^4_sigma_sys_plus,D^4_sigma_sys_minus,link
+﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,D^4_sigma (nb/Gev^4),D^4_sigma_stat_plus,D^4_sigma_stat_minus,D^4_sigma_sys_plus,D^4_sigma_sys_minus,link
 ,2.94,2.012,0.192,0.378,,7.5,,,,,,0.064,0.0063,0.0063,0.0011,0.0009,https://doi.org/10.1103/PhysRevC.92.055202
 ,2.94,2.012,0.192,0.378,,22.5,,,,,,0.0682,0.0062,0.0062,0.0018,0.002,
 ,2.94,2.012,0.192,0.378,,37.5,,,,,,0.0528,0.0056,0.0056,0,0.0046,

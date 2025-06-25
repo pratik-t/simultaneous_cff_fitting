@@ -1,4 +1,4 @@
-﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,t_min,t_max,dsigma/dt [nb/GeV^2],dsigma_stat_plus,dsigma_stat_minus,dsigma_sys_plus,dsigma_sys_minus,Slope [GeV^-2],slope_stat_plus,slope_stat_minus,slope_sys_plus,slope_sys_minus,link
+﻿bin,k,q_squared,t,x_b,w,phi,sigma [nb],sigma_stat_plus,sigma_stat_minus,sigma_sys_plus,sigma_sys_minus,t_min,t_max,dsigma/dt [nb/GeV^2],dsigma/dt_stat_plus,dsigma/dt_stat_minus,dsigma/dt_sys_plus,dsigma/dt_sys_minus,Slope [GeV^-2],Slope_stat_plus,Slope_stat_minus,Slope_sys_plus,Slope_sys_minus,link
 ,,8,0.1,,82,,,,,,,0,0.2,13.3,0.8,-0.8,1.73,-1.73,5.87,0.2,0.2,0.32,0.32,https://doi.org/10.1016/j.physletb.2009.10.035
 ,,8,0.3,,82,,,,,,,0.2,0.4,4.82,0.32,-0.32,0.5,-0.5,5.87,0.2,0.2,0.32,0.32,
 ,,8,0.5,,82,,,,,,,0.4,0.6,1.26,0.14,-0.14,0.18,-0.18,5.87,0.2,0.2,0.32,0.32,

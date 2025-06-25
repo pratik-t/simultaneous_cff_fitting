@@ -56,6 +56,8 @@ def format_header(name: str) -> str:
         return r'$W$'
     if name in ('k', 't', 'BSA', 'TSA', 'DSA', 'BCA', 'ALU'):
         return f'${{{name}}}$'
+    if name == 'Helc_charge_asym':
+        return r'$Q_{asy}$'
     if name == 'phi':
         return r'$\phi$'
     if name == 'ALU_sin_PHI':
@@ -78,7 +80,7 @@ def format_header(name: str) -> str:
         return r'$d^{5}\sigma/(dk_{lab}\ d\Omega_{e_{lab}}\ d\Omega_{p_{c.m.}})\ [fb/(MeV\ sr^{2})]$'
     if name == 'D2_sigma_d_omega (nb/sr)':
         return r'$d^{2}\sigma/d\Omega_{p_{c.m.}}\  [nb/sr]$'
-    if name == 'D4_sigma (nb/Gev^4)':
+    if name == 'D^4_sigma (nb/Gev^4)':
         return r'$d^{4}\sigma/(dQ^{2}\ dt\ dx_{B}\ d\phi)\ [nb/GeV^{4}]$'
     if name == 'Helc_diff_D^4_sigma (nb/Gev^4)':
         return r'$(d^{4}\sigma^{+}-d^{4}\sigma^{-})\ [nb/GeV^{4}]$'
