@@ -136,8 +136,8 @@ def generate_replica_data(pandas_dataframe: pd.DataFrame):
             if SETTING_DEBUG:
                 print(f"> [DEBUG]: Stripped column name to: {column_base_name}")
 
-            # (): Construct the corresponding string (which will become a key) for statistical 
-            # | uncertainty for this observable. Notce that we are taking the PLUS value to 
+            # (): Construct the corresponding string (which will become a key) for statistical
+            # | uncertainty for this observable. Notce that we are taking the PLUS value to
             # | represent the "width":
             observable_statistical_uncertainty = f"{column_base_name}_stat_plus"
 
@@ -204,18 +204,18 @@ def generate_replica_data(pandas_dataframe: pd.DataFrame):
             # plt.show()
             # plt.close()
 
-    pseudodata_dataframe.to_csv("test1.csv")
+    # pseudodata_dataframe.to_csv("test1.csv")
 
     return pseudodata_dataframe
 
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-folder_path = os.path.abspath(os.path.join(script_dir, '..', 'data'))
+# script_dir = os.path.dirname(os.path.abspath(__file__))
+# folder_path = os.path.abspath(os.path.join(script_dir, '..', 'data'))
 
-for filepath in glob.glob(os.path.join(folder_path, '*.csv')):
-    filename = os.path.basename(filepath)
+# for filepath in glob.glob(os.path.join(folder_path, '*.csv')):
+#     filename = os.path.basename(filepath)
 
-    print(f'\n========================{filename}========================\n')
+#     print(f'\n========================{filename}========================\n')
 
-    df = pd.read_csv(filepath)
-    generate_replica_data(df)
+#     df = pd.read_csv(filepath)
+#     generate_replica_data(df)

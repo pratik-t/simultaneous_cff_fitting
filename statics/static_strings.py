@@ -37,7 +37,7 @@ _COLUMN_NAME_KINEMATIC_BIN = "bin"
 _COLUMN_NAME_LEPTON_MOMENTUM = "k"
 
 # (12): "Generalized" column name for Q^{2}:
-_COLUMN_NAME_Q_SQUARED = "QQ"
+_COLUMN_NAME_Q_SQUARED = "q_squared"
 
 # (13): "Generalized" column name for t (hadronic momentum transfer):
 _COLUMN_NAME_T_MOMENTUM_CHANGE = "t"
@@ -47,3 +47,42 @@ _COLUMN_NAME_X_BJORKEN = "x_b"
 
 # (14): "Generalized" column name for azimuthal phi angle:
 _COLUMN_NAME_AZIMUTHAL_PHI = "phi"
+
+# (X): DNN Hyperparameters | Learning Rate:
+_HYPERPARAMETER_LEARNING_RATE = 0.001
+
+# (X): DNN Hyperparameters | LR "patience":
+_HYPERPARAMETER_LR_PATIENCE = 400
+
+# (X): DNN Hyperparameters | LR factor:
+_HYPERPARAMETER_LR_FACTOR = 0.9
+
+# (X): DNN Hyperparameters | EarlyStop "patience":
+_HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER = 1000
+
+# (X): DNN Hyperparameters | Neurons in 1st Layer:
+_HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_1 = 10
+
+# (X): DNN Hyperparameters | Neurons in 2nd Layer:
+_HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_2 = 10
+
+# (X): DNN Hyperparameters | Neurons in 3rd Layer:
+_HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_3 = 10
+
+# (X): DNN Hyperparameters | Neurons in 4th Layer:
+_HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_4 = 10
+
+# (X): DNN Hyperparameters | Neurons in 5th Layer:
+_HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_5 = 4
+
+# (X): DNN Training Settings | Number of Replicas:
+_HYPERPARAMETER_NUMBER_OF_REPLICAS = 300
+
+# (X): DNN Training Settings | Number of Replicas:
+_HYPERPARAMETER_NUMBER_OF_EPOCHS = 100
+
+# (X): DNN Training Settings | Number of Replicas:
+_HYPERPARAMETER_BATCH_SIZE = 16
+
+# (X): DNN verbosity setting:
+_DNN_VERBOSE_SETTING = 2

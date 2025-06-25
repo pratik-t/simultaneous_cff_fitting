@@ -15,6 +15,13 @@ import os
 # 3rd Party Library | Pandas:
 import pandas as pd
 
+# 3rd Party Library | Pandas:
+import tensorflow as tf
+
+from models.architecture import build_simultaneous_model
+
+from scripts.replica_data import generate_replica_data
+
 # static_strings > argparse > description:
 from statics.static_strings import _ARGPARSE_DESCRIPTION
 from statics.static_strings import _ARGPARSE_ARGUMENT_INPUT_DATAFILE
@@ -39,7 +46,17 @@ from statics.static_strings import _COLUMN_NAME_T_MOMENTUM_CHANGE
 # static_strings > "phi"
 from statics.static_strings import _COLUMN_NAME_AZIMUTHAL_PHI
 
-from scripts.replica_data import generate_replica_data
+from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_EPOCHS
+
+from statics.static_strings import _HYPERPARAMETER_BATCH_SIZE
+
+from statics.static_strings import _HYPERPARAMETER_LR_PATIENCE
+
+from statics.static_strings import _HYPERPARAMETER_LR_FACTOR
+
+from statics.static_strings import _HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER
+
+from statics.static_strings import _DNN_VERBOSE_SETTING
 
 SETTING_VERBOSE = True
 SETTING_DEBUG = True
@@ -91,8 +108,12 @@ def main(
         # (X): We now compute a *given* replica's DF --- it will *not* be the same as the original DF!
         generated_replica_data = generate_replica_data(pandas_dataframe = this_replica_data_set)
 
+        print(generated_replica_data)
+
         # (X): Identify the "x values" for our model:
         raw_x_data = generated_replica_data[[_COLUMN_NAME_Q_SQUARED, _COLUMN_NAME_X_BJORKEN, _COLUMN_NAME_T_MOMENTUM_CHANGE, _COLUMN_NAME_LEPTON_MOMENTUM]]
+
+        print(raw_x_data)
 
         # (X): Identify the "y values" for our model:
         # raw_y_data = generated_replica_data[_COLUMN_NAME_CROSS_SECTION]
@@ -101,8 +122,32 @@ def main(
         # (X): Begin timing the replica time:
         start_time_in_milliseconds = datetime.datetime.now().replace(microsecond = 0)
         
-        if verbose:
+        if SETTING_DEBUG or SETTING_VERBOSE:
             print(f"> Replica #{replica_index + 1} now running...")
+
+        # (X): Initialize the model:
+        dnn_model = build_simultaneous_model()
+
+        neural_network_training_history = dnn_model.fit(
+            # training_x_data,
+            # training_y_data,
+            # validation_data = (testing_x_data, testing_y_data),
+            epochs = _HYPERPARAMETER_NUMBER_OF_EPOCHS,
+            callbacks = [
+                tf.keras.callbacks.ReduceLROnPlateau(
+                    monitor = 'loss',
+                    factor = _HYPERPARAMETER_LR_FACTOR,
+                    patience = _HYPERPARAMETER_LR_PATIENCE,
+                    mode = 'auto'),
+                tf.keras.callbacks.EarlyStopping(
+                    monitor = 'loss',
+                    patience = _HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER)
+            ],
+            batch_size = _HYPERPARAMETER_BATCH_SIZE,
+            verbose = _DNN_VERBOSE_SETTING)
+
+        if SETTING_DEBUG or SETTING_VERBOSE:
+            print(f"> Replica #{replica_index + 1} finished running!")
 
 
 if __name__ == "__main__":
