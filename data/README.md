@@ -137,7 +137,7 @@
     | ${k}$ | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | $(d^{4}\sigma^{+}-d^{4}\sigma^{-})\ [nb/GeV^{4}]$ |
     | --- | --- | --- | --- | --- | --- |
   - dvcs_JLABA_2015_tab_1_4_6.csv :
-    | ${k}$ | $Q^{2}$ | $x_{b}$ | $W$ | $\theta_{e}$ | $\theta_{q}$ | $E_{\gamma}$ | ${BCA}$ | $\chi^{2}_{pol}/dof$ | $\chi^{2}_{unpol}/dof$ |
+    | ${k}$ | $Q^{2}$ | $x_{b}$ | $W$ | $\theta_{e}$ | $\theta_{q}$ | $E_{\gamma}$ | $Q_{asy}$ | $\chi^{2}_{pol}/dof$ | $\chi^{2}_{unpol}/dof$ |
     | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
   - dvcs_JLABA_2015_tab_7.csv :
     | ${k}$ | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | $d^{4}\sigma/(dQ^{2}\ dt\ dx_{B}\ d\phi)\ [nb/GeV^{4}]$ |
@@ -154,7 +154,7 @@
     | ${k}$ | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | $d^{4}\sigma/(dQ^{2}\ dt\ dx_{B}\ d\phi)\ [nb/GeV^{4}]$ |
     | --- | --- | --- | --- | --- | --- |
   - dvcs_JLABA_2017_tab_B.csv :
-    | ${k}$ | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | $1/2\times(d^{4}\sigma^{+}+d^{4}\sigma^{-})\ [nb/GeV^{4}]$ |
+    | ${k}$ | $Q^{2}$ | ${t}$ | $x_{b}$ | $\phi$ | $1/2\times(d^{4}\sigma^{+}-d^{4}\sigma^{-})\ [nb/GeV^{4}]$ |
     | --- | --- | --- | --- | --- | --- |
 
 - Link: https://doi.org/10.1103/PhysRevLett.128.252002
