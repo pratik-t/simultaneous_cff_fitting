@@ -15,6 +15,7 @@ import os
 # 3rd Party Library | Pandas:
 import pandas as pd
 
+# static_strings > argparse > description:
 from statics.static_strings import _ARGPARSE_DESCRIPTION
 from statics.static_strings import _ARGPARSE_ARGUMENT_INPUT_DATAFILE
 from statics.static_strings import _ARGPARSE_ARGUMENT_NUMBER_REPLICAS
@@ -22,6 +23,21 @@ from statics.static_strings import _ARGPARSE_ARGUMENT_VERBOSE
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_INPUT_DATAFILE
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_NUMBER_REPLICAS
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_VERBOSE
+
+# static_strings > "k"
+from statics.static_strings import _COLUMN_NAME_LEPTON_MOMENTUM
+
+# static_strings > "x_b"
+from statics.static_strings import _COLUMN_NAME_X_BJORKEN
+
+# static_strings > "q_squared"
+from statics.static_strings import _COLUMN_NAME_Q_SQUARED
+
+# static_strings > "t"
+from statics.static_strings import _COLUMN_NAME_T_MOMENTUM_CHANGE
+
+# static_strings > "phi"
+from statics.static_strings import _COLUMN_NAME_AZIMUTHAL_PHI
 
 from scripts.replica_data import generate_replica_data
 
@@ -73,9 +89,16 @@ def main(
             print(f"> [DEBUG]: Now printing the Pandas DF head using df.head():\n {this_replica_data_set.head()}")
 
         # (X): We now compute a *given* replica's DF --- it will *not* be the same as the original DF!
-        pseudodata_dataframe = generate_replica_data(pandas_dataframe = this_replica_data_set)
+        generated_replica_data = generate_replica_data(pandas_dataframe = this_replica_data_set)
 
-        # (1.5): Begin timing the replica time:
+        # (X): Identify the "x values" for our model:
+        raw_x_data = generated_replica_data[[_COLUMN_NAME_Q_SQUARED, _COLUMN_NAME_X_BJORKEN, _COLUMN_NAME_T_MOMENTUM_CHANGE, _COLUMN_NAME_LEPTON_MOMENTUM]]
+
+        # (X): Identify the "y values" for our model:
+        # raw_y_data = generated_replica_data[_COLUMN_NAME_CROSS_SECTION]
+        # yraw__data_error = generated_replica_data[_COLUMN_NAME_CROSS_SECTION_ERROR]
+
+        # (X): Begin timing the replica time:
         start_time_in_milliseconds = datetime.datetime.now().replace(microsecond = 0)
         
         if verbose:
