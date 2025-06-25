@@ -50,7 +50,7 @@ def generate_replica_data(pandas_dataframe: pd.DataFrame):
 
             # (5.1.1): If it matches, then we *exclude* the column without "pure" observables:
             continue
-        
+
         # (5.2): Otherwise, we first turn the corresponding column into a Series type with no NaNs:
         series = pseudodata_dataframe[column].dropna().astype(str)
 
@@ -63,7 +63,7 @@ def generate_replica_data(pandas_dataframe: pd.DataFrame):
         # | (Notice this will *not* pass in the case that *all* Series elements are False!)
         if series_of_nonempty_entries.any():
 
-            # (5.4.1): ... then we add the column to the list of column names --- should *not* be observables!
+          # (5.4.1): ... then we add the column to the list of column names --- should *not* be observables!
             names_of_columns.append(column)
 
     # (): We now need to figure out what kinematics and observables are *in* the actual DF:
