@@ -2,6 +2,9 @@
 The code containing the custom loss functions.
 """
 
+# 3rd Party Libraries | TensorFlow:
+import tensorflow as tf
+
 # 3rd Party Libraries | bkm10_lib:
 from bkm10_lib import DifferentialCrossSection, CFFInputs
 
@@ -22,4 +25,4 @@ def simultaneous_fit_loss(true_values, predicted_values, kinematic_settings):
         compton_form_factor_e = complex(1., 1.),
         compton_form_factor_e_tilde = complex(1., 1.))
     
-    return 0.
+    return tf.reduce_mean(tf.square(predicted_values - true_values))

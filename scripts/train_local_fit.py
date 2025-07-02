@@ -145,8 +145,8 @@ def main(
 
         # (X): Identify the "x values" for our model:
         raw_kinematics = generated_replica_data[[
-            _COLUMN_NAME_Q_SQUARED, 
-            _COLUMN_NAME_X_BJORKEN, 
+            _COLUMN_NAME_Q_SQUARED,
+            _COLUMN_NAME_X_BJORKEN,
             _COLUMN_NAME_T_MOMENTUM_CHANGE,
             _COLUMN_NAME_LEPTON_MOMENTUM,
             _COLUMN_NAME_AZIMUTHAL_PHI]]

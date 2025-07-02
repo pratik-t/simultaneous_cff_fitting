@@ -101,7 +101,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         }
 
         # (X): Compute the differential cross section accordingly:
-        differential_cross_section = DifferentialCrossSection(configuration).compute_cross_section(phi)
+        differential_cross_section = DifferentialCrossSection(configuration, verbose = True).compute_cross_section(phi)
 
         # (X): Re-cast sigma into a single value (I think):
         return tf.expand_dims(differential_cross_section, axis = -1)
@@ -117,7 +117,7 @@ class BSALayer(tf.keras.layers.Layer):
         real_H, imag_H, real_E, imag_E, real_Ht, imag_Ht, real_Et, imag_Et = tf.unstack(cffs, axis = -1)
 
         # (X): Extract the kinematics from the DNN:
-        q_squared, x_bjorken, t, phi = tf.unstack(kinematics, axis = -1)
+        q_squared, x_bjorken, t, k, phi = tf.unstack(kinematics, axis = -1)
 
         # (X): DUMMY COMPUTATION FOR NOW:
         bsa = real_H**2 + imag_H**2 + 0.5 * tf.cos(phi) * real_E + 0.1 * q_squared
