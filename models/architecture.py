@@ -72,7 +72,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         q_squared, x_bjorken, t, k, phi = tf.unstack(kinematics, axis = -1)
 
         # (X): DUMMY COMPUTATION FOR NOW:
-        # differential_cross_section = real_H**2 + imag_H**2 + 0.5 * tf.cos(phi) * real_E + 0.1 * q_squared
+        differential_cross_section = real_H**2 + imag_H**2 + 0.5 * tf.cos(phi) * real_E + 0.1 * q_squared
 
         # (X): The calculation requires that we use TF not NumPy to do stuff:
         backend.set_backend('tensorflow')
@@ -101,7 +101,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         }
 
         # (X): Compute the differential cross section accordingly:
-        differential_cross_section = DifferentialCrossSection(configuration, verbose = True).compute_cross_section(phi)
+        # differential_cross_section = DifferentialCrossSection(configuration, verbose = True).compute_cross_section(phi)
 
         # (X): Re-cast sigma into a single value (I think):
         return tf.expand_dims(differential_cross_section, axis = -1)
@@ -142,17 +142,33 @@ class SimultaneousFitModel(tf.keras.Model):
         # (X): Unpack the data:
         x_training_data, y_training_data = data
 
+        if SETTING_DEBUG:
+            print("> [DEBUG]: Unpacked training data.")
+
         # (X): Use TensorFlow's GradientTape to unfold each step of the training scheme:
         with tf.GradientTape() as gradient_tape:
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Now unraveling gradient tape...")
 
             # (X): Evaluate the model by passing in the input data:
             predicted_cff_values = self.model(x_training_data, training = True)
 
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Predicted CFF values: {predicted_cff_values}")
+
             # (X): Use the custom-defined loss function to compute a scalar loss:
             computed_loss = simultaneous_fit_loss(y_training_data, predicted_cff_values, x_training_data)
 
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Loss computed! {computed_loss}")
+
         # (X): Compute the gradients during backpropagation:
         computed_gradients = gradient_tape.gradient(computed_loss, self.trainable_variables)
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Cmputed batch gradients: {computed_gradients}")
+
 
         # (X): Call the TF model's optimizer:
         self.optimizer.apply_gradients(
@@ -161,6 +177,9 @@ class SimultaneousFitModel(tf.keras.Model):
                 self.trainable_variables
             )
         )
+
+        if SETTING_DEBUG:
+            print("> [DEBUG]: Gradients applied with optimizer!")
 
 def build_simultaneous_model():
     """

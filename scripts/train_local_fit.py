@@ -12,6 +12,9 @@ import datetime
 # Native Library | os
 import os
 
+# Native Library | json
+import json
+
 # 3rd Party Library | NumPy:
 import numpy as np
 
@@ -61,6 +64,20 @@ from statics.static_strings import _COLUMN_NAME_CROSS_SECTION
 # (X):
 from statics.static_strings import _COLUMN_NAME_CROSS_SECTION_ERROR
 
+# (X):
+from statics.static_strings import _DIRECTORY_REPLICAS
+
+# (X):
+from statics.static_strings import _DIRECTORY_REPLICAS_LOSSES
+
+# (X):
+from statics.static_strings import _FIGURE_FORMAT_EPS
+
+# (X):
+from statics.static_strings import _FIGURE_FORMAT_SVG
+
+from statics.static_strings import REQUIRED_SUBDIRECTORIES_LIST
+
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_EPOCHS
 
 from statics.static_strings import _HYPERPARAMETER_BATCH_SIZE
@@ -73,28 +90,137 @@ from statics.static_strings import _HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER
 
 from statics.static_strings import _DNN_VERBOSE_SETTING
 
+from statics.static_strings import _DNN_TRAIN_TEST_SPLIT_PERCENTAGE
+
+# (X): We tell rcParams to use LaTeX. Note: this will *crash* your 
+# | version of the code if you do not have TeX distribution installed!
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "serif",
-    "text.latex.preamble": r"\usepackage{amsmath}"
 })
+
+# (X): rcParams for the x-axis tick direction:
 plt.rcParams['xtick.direction'] = 'in'
+
+# (X): rcParams for the "major" (larger) x-axis vertical size:
 plt.rcParams['xtick.major.size'] = 5
+
+# (X): rcParams for the "major" (larger) x-axis horizonal width:
 plt.rcParams['xtick.major.width'] = 0.5
+
+# (X): rcParams for the "minor" (smaller) x-axis vertical size:
 plt.rcParams['xtick.minor.size'] = 2.5
+
+# (X): rcParams for the "minor" (smaller) x-axis horizonal width:
 plt.rcParams['xtick.minor.width'] = 0.5
+
+# (X): rcParams for the minor ticks to be *shown* versus invisible:
 plt.rcParams['xtick.minor.visible'] = True
-plt.rcParams['xtick.top'] = True
+
+# (X): rcParams dictating that we want ticks along the x-axis on *top* (opposite side) of the bounding box:
+plt.rcParams['xtick.top'] = True    
+
+# (X): rcParams for the y-axis tick direction:
 plt.rcParams['ytick.direction'] = 'in'
+
+# (X): rcParams for the "major" (larger) y-axis vertical size:
 plt.rcParams['ytick.major.size'] = 5
+
+# (X): rcParams for the "major" (larger) y-axis horizonal width:
 plt.rcParams['ytick.major.width'] = 0.5
+
+# (X): rcParams for the "minor" (smaller) y-axis vertical size:
 plt.rcParams['ytick.minor.size'] = 2.5
+
+# (X): rcParams for the "minor" (smaller) y-axis horizonal width:
 plt.rcParams['ytick.minor.width'] = 0.5
+
+# (X): rcParams for the minor ticks to be *shown* versus invisible:
 plt.rcParams['ytick.minor.visible'] = True
+
+# (X): rcParams dictating that we want ticks along the y-axis on the *left* of the bounding box:
 plt.rcParams['ytick.right'] = True
 
 SETTING_VERBOSE = True
 SETTING_DEBUG = True
+
+def create_relevant_directories(
+        data_file_name: str,
+        number_of_replicas: int,
+        verbose: bool = False):
+    """
+    ## Description:
+    A function that automates the construction of the several relevant folders
+    used for the analysis of ML output.
+    """
+
+    # (1): We create a *unique* timestamp to name the analysis folder:
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed timestamp to be: {timestamp}")
+
+    # (2): We now use an f-string to compute the folder name:
+    current_run_name = f"replica_run_{timestamp}"
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed current replica run to be: {current_run_name}")
+
+    # (3): Use os.path to construct a path...
+    current_run_folder = os.path.join(f"{os.getcwd()}/analysis", current_run_name)
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Determined run folder to be: {current_run_folder}")
+
+    # (4): Make a bunch of subdirectories required for analysis:
+    for subdirectory in REQUIRED_SUBDIRECTORIES_LIST:
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Now iterating over subdirectory: {subdirectory}")
+
+        # (4.1): Join paths:
+        full_path = os.path.join(current_run_folder, subdirectory)
+
+        # (4.2): Use `makedirs` to enforce construction of folders:
+        os.makedirs(full_path, exist_ok = True)
+
+    # (5): Compute the path for the README file that contains infor about the *data*:
+    data_readme_file_path_and_name = os.path.join(current_run_folder, "data/raw/README.md")
+
+    # (6): Compute the path for the README file that will contain info about the *replicas*
+    # | and other ANN stuff (e.g. hyperparameters):
+    replicas_readme_file_path_and_name = os.path.join(current_run_folder, "data/replicas/README.md")
+
+    # (7): Open the data README file to prepare to write:
+    with open(
+        file = data_readme_file_path_and_name,
+        mode = "w",
+        encoding = "utf-8") as new_data_readme:
+        new_data_readme.write(f"# Raw Data for Replica Run on {timestamp}\n")
+        new_data_readme.write("This folder contains the original data used to generate pseudodata for replicas.\n")
+        new_data_readme.write(f"\n- Source data file: `{data_file_name}`\n")
+        new_data_readme.close()
+
+    # (8): Open the replica README file to prepare to write:
+    with open(
+        file = replicas_readme_file_path_and_name,
+        mode = "w",
+        encoding = "utf-8") as new_replica_readme:
+        new_replica_readme.write(f"# Replicas for Replica Run on {timestamp} \n")
+        new_replica_readme.write("This folder contains the .csv files and .keras model files for each replica.\n")
+        new_replica_readme.write("The hyperparameters that characterize this replica DNN are:\n")
+        new_replica_readme.write(f"- Number of replicas: {number_of_replicas}\n")
+        new_replica_readme.write(f"- Number of epochs per replica: {_HYPERPARAMETER_NUMBER_OF_EPOCHS}\n")
+        new_replica_readme.write(f"- Batch size: {_HYPERPARAMETER_BATCH_SIZE}\n")
+        new_replica_readme.write(f"- Learning rate patience: {_HYPERPARAMETER_LR_PATIENCE}\n")
+        new_replica_readme.write(f"- Learning rate factor: {_HYPERPARAMETER_LR_FACTOR}\n")
+        new_replica_readme.write(f"- EarlyStop patience: {_HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER}\n")
+        new_replica_readme.close()
+
+    if SETTING_VERBOSE:
+        print(f"> [VERBOSE]: Created replica analysis directory at: {current_run_folder}")
+
+    return current_run_folder
 
 def main(
         kinematics_dataframe_name: str,
@@ -103,6 +229,11 @@ def main(
     """
     Main entry point to the local fitting procedure.
     """
+    
+    # (1): Enforce creation of required directory structure:
+    current_replica_run_directory = create_relevant_directories(
+        data_file_name = kinematics_dataframe_name,
+        number_of_replicas = number_of_replicas)
     
     # (1): Begin iteratng over the replicas:
     for replica_index in range(number_of_replicas):
@@ -125,14 +256,11 @@ def main(
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed corresponding replica file name to be: {model_file_name}")
 
-        # (1.4): Create the directory for the replica:
-        did_we_create_replica_directory = None
-
         # (X): Rely on Pandas to correctly read the just-generated .csv file:
-        kinematics_dataframe_path = os.path.join("data", kinematics_dataframe_name)
+        kinematics_dataframe_path = os.path.join('data', kinematics_dataframe_name)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed path to .csv file: {kinematics_dataframe_path}")
+            print(f"> [DEBUG]: Computed path to data .csv file: {kinematics_dataframe_path}")
 
         # (X): Use Pandas' `.read_csv()` method to generate a corresponding DF:
         this_replica_data_set = pd.read_csv(kinematics_dataframe_path)
@@ -143,6 +271,23 @@ def main(
         # (X): We now compute a *given* replica's DF --- it will *not* be the same as the original DF!
         generated_replica_data = generate_replica_data(pandas_dataframe = this_replica_data_set)
 
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Successfully generated replica data. Now displaying using df.head():\n {generated_replica_data.head()}")
+
+        # (X): Use an f-string to compute the name *and location* of the file!
+        computed_path_and_name_of_replica_data = f"{current_replica_run_directory}/pseudodata_replica_{replica_number}_data.csv"
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Computed path and file name of current replica data: {computed_path_and_name_of_replica_data}")
+
+        # (X): We also store the pseudodata/replica data for reproducability purposes:
+        generated_replica_data.to_csv(
+            path_or_buf = computed_path_and_name_of_replica_data,
+            index_label = None)
+        
+        if SETTING_DEBUG:
+            print("> [DEBUG]: Saved replica data!")
+
         # (X): Identify the "x values" for our model:
         raw_kinematics = generated_replica_data[[
             _COLUMN_NAME_Q_SQUARED,
@@ -150,25 +295,37 @@ def main(
             _COLUMN_NAME_T_MOMENTUM_CHANGE,
             _COLUMN_NAME_LEPTON_MOMENTUM,
             _COLUMN_NAME_AZIMUTHAL_PHI]]
+        
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Obtained kinematic settings columns --- using .head() to display:\n{raw_kinematics.head()}")
 
         # (X): Obtain the cross section data from the replica dataframe:
         raw_cross_section = generated_replica_data[_COLUMN_NAME_CROSS_SECTION]
 
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Obtained cross-section column --- using .head() to display:\n{raw_cross_section.head()}")
+
         # (X): Obtain the associated cross section error from the replica dataframe:
         raw_cross_section_error = generated_replica_data[_COLUMN_NAME_CROSS_SECTION_ERROR]
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Obtained cross-section error column --- using .head() to display:\n{raw_cross_section_error.head()}")
 
         # (X): Use sklearn's traing/validation split function to split into training and testing data:
         x_training, x_validation, y_training, y_validation = train_test_split(
             raw_kinematics,
             raw_cross_section,
-            test_size = 0.2,
+            test_size = _DNN_TRAIN_TEST_SPLIT_PERCENTAGE,
             random_state = 42)
+        
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Partitioned data into train/test with split percentage of: {_DNN_TRAIN_TEST_SPLIT_PERCENTAGE}")
 
         # (X): Begin timing the replica time:
         start_time_in_milliseconds = datetime.datetime.now().replace(microsecond = 0)
         
         if SETTING_DEBUG or SETTING_VERBOSE:
-            print(f"> Replica #{replica_index + 1} now running...")
+            print(f"> Replica #{replica_index + 1} started at {start_time_in_milliseconds}...")
 
         # (X): Initialize the model:
         dnn_model = build_simultaneous_model()
@@ -216,39 +373,67 @@ def main(
         # (X): Extract the 'val_loss' (validation loss) from the TF history object:
         validation_loss_history_array = neural_network_training_history.history['val_loss']
             
+        # (X): Define a Figure object for plotting network loss:
         evaluation_figure = plt.figure(
             figsize = (11, 8))
         
+        # (X): Add the subplot, which returns an Axes:
         evaluation_axis = evaluation_figure.add_subplot(1, 1, 1)
         
+        # (X): Add a simple horizonal line that shows the *initial value* of the MSEl
         evaluation_axis.plot(
             np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
             np.array([np.max(training_loss_data) for number in training_loss_data]),
             color = "red",
             label = "Initial MSE Loss")
         
+        # (X): Add a simple horizonal line that shows where MSE = 0:
         evaluation_axis.plot(
             np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
             np.zeros(shape = _HYPERPARAMETER_NUMBER_OF_EPOCHS),
             color = "green",
             label = r"MSE $=0$")
         
+        # (X): Add a line plot that shows MSE loss vs. epoch:
         evaluation_axis.plot(
             np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
             training_loss_data,
             color = "blue",
             label = "MSE Loss")
         
+        # (X): Add a line plot that shows the trend of validation loss vs. epoch:
         evaluation_axis.plot(
             np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
             validation_loss_history_array,
             color = "purple",
             label = "Validation Loss")
         
+        # (X): Add the x-label:
         evaluation_axis.set_xlabel('Epoch Number')
+
+        # (X): Add the y-label:
         evaluation_axis.set_ylabel('Scalar Loss')
-        evaluation_axis.legend(fontsize = 20, shadow = True)
-        evaluation_figure.savefig(f"loss_analytics_replica_{replica_index + 1}_v1.png")
+
+        # (X): Add the legend for clarity:
+        plt.legend(fontsize = 17)
+
+        # (X): Compute the string that will be the filename of the loss plot:
+        current_replica_loss_plot_filename = f"{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_LOSSES}/loss_analytics_replica_{replica_number}_v1"
+
+        if SETTING_DEBUG or SETTING_VERBOSE:
+            print(f"> Computed replica loss plot file destination:\n> {current_replica_loss_plot_filename}")
+
+        # (X): Save a version of the figure according to .eps format for Overleaf stuff:
+        evaluation_figure.savefig(
+            fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_EPS}",
+            format = _FIGURE_FORMAT_EPS)
+        
+        # (X): Save an immediately-visualizable figure with vector graphics:
+        evaluation_figure.savefig(
+            fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_SVG}",
+            format = _FIGURE_FORMAT_SVG)
+        
+        # (X): Closing figures:
         plt.close()
 
 

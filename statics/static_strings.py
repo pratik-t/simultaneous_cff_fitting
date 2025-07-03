@@ -48,6 +48,40 @@ _COLUMN_NAME_X_BJORKEN = "x_b"
 # (14): "Generalized" column name for azimuthal phi angle:
 _COLUMN_NAME_AZIMUTHAL_PHI = "phi"
 
+# (X): Required subdirectories | analysis > data:
+_DIRECTORY_DATA = 'data'
+
+# (X): Required subdirectories | analysis > data > raw:
+_DIRECTORY_DATA_RAW = 'raw'
+
+# (X): Required subdirectories | analysis > data > replicas:
+_DIRECTORY_DATA_REPLICAS = 'replicas'
+
+# (X): Required subdirectories | analysis > replicas:
+_DIRECTORY_REPLICAS = 'replicas'
+
+# (X): Required subdirectories | analysis > replicas > fits:
+_DIRECTORY_REPLICAS_FITS = 'fits'
+
+# (X): Required subdirectories | analysis > replicas > losses:
+_DIRECTORY_REPLICAS_LOSSES = 'losses'
+
+# (X): Required subdirectories | analysis > replicas > performance:
+_DIRECTORY_REPLICAS_PERFORMANCE = 'performance'
+
+# (X): Required subdirectories | analysis > replicas > pseudodata:
+_DIRECTORY_REPLICAS_PSEUDODATA = 'pseudodata'
+
+# (X): Required subdirectories list:
+REQUIRED_SUBDIRECTORIES_LIST = [
+    f"{_DIRECTORY_DATA}/{_DIRECTORY_DATA_RAW}",
+    f"{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}",
+    f"{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_FITS}",
+    f"{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_LOSSES}",
+    f"{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_PERFORMANCE}",
+    f"{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_PSEUDODATA}",
+]
+
 # (X): DNN Hyperparameters | Learning Rate:
 _HYPERPARAMETER_LEARNING_RATE = 0.001
 
@@ -84,8 +118,20 @@ _HYPERPARAMETER_NUMBER_OF_EPOCHS = 100
 # (X): DNN Training Settings | Number of Replicas:
 _HYPERPARAMETER_BATCH_SIZE = 16
 
+# (X): DNN train/test split *decimal*:
+_DNN_TRAIN_TEST_SPLIT_PERCENTAGE = 0.2
+
 # (X): DNN verbosity setting:
 _DNN_VERBOSE_SETTING = 2
+
+# (X):
+_FIGURE_FORMAT_EPS = "eps"
+
+# (X):
+_FIGURE_FORMAT_SVG = "svg"
+
+# (X):
+_FIGURE_FORMAT_PNG = "png"
 
 # TEMPORARY!
 _COLUMN_NAME_CROSS_SECTION = "sigma"
