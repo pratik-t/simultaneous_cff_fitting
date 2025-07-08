@@ -10,10 +10,19 @@ import tensorflow as tf
 from bkm10_lib import DifferentialCrossSection, CFFInputs, BKM10Inputs, backend
 
 # 3rd Party Library | TensorFlow:
-from tensorflow.keras.layers import Input, Concatenate, Dense
+from tensorflow.keras.layers import Input
+
+# 3rd Party Library | TensorFlow:
+from tensorflow.keras.layers import Concatenate
+
+# 3rd Party Library | TensorFlow:
+from tensorflow.keras.layers import Dense
 
 # 3rd Party Library | TensorFlow:
 from tensorflow.keras.models import Model
+
+# 3rd Party Library | TensorFlow:
+from tensorflow.keras.utils import register_keras_serializable
 
 from models.loss_functions import simultaneous_fit_loss
 
@@ -27,6 +36,7 @@ from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_5
 SETTING_VERBOSE = True
 SETTING_DEBUG = True
 
+@register_keras_serializable()
 class CrossSectionLayer(tf.keras.layers.Layer):
 
     def __init__(
@@ -105,7 +115,8 @@ class CrossSectionLayer(tf.keras.layers.Layer):
 
         # (X): Re-cast sigma into a single value (I think):
         return tf.expand_dims(differential_cross_section, axis = -1)
-    
+
+@register_keras_serializable()
 class BSALayer(tf.keras.layers.Layer):
 
     def call(self, inputs):
@@ -223,7 +234,8 @@ def build_simultaneous_model():
     output_cffs = tf.keras.layers.Dense(
         _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_5,
         activation = "relu",
-        kernel_initializer = initializer)(x)
+        kernel_initializer = initializer,
+        name = "cff_output_layer")(x)
     
     # (4): Combine the kinematics as a single list:
     # kinematics_and_cffs = Concatenate(axis = 1)([input_kinematics, output_cffs])

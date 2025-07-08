@@ -125,6 +125,12 @@ _DNN_TRAIN_TEST_SPLIT_PERCENTAGE = 0.2
 _DNN_VERBOSE_SETTING = 2
 
 # (X):
+_TF_FORMAT_KERAS = "keras"
+
+# (X):
+_TF_FORMAT_H5 = ".5"
+
+# (X):
 _FIGURE_FORMAT_EPS = "eps"
 
 # (X):

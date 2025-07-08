@@ -12,9 +12,6 @@ import datetime
 # Native Library | os
 import os
 
-# Native Library | json
-import json
-
 # 3rd Party Library | NumPy:
 import numpy as np
 
@@ -30,8 +27,21 @@ import tensorflow as tf
 # 3rd Party Library | sklearn:
 from sklearn.model_selection import train_test_split
 
+# 3rd Party Library | SciPy:
+from scipy.stats import norm
+
+# 3rd Party Library | tqdm:
+from tqdm import tqdm
+
+# (X): Function | model > architecture > build_simultaneous_model
 from models.architecture import build_simultaneous_model
 
+# (X): In order to correctly deserialize a TF model, you need to define
+# | custom objects when loading it. And so that requires that we
+# | actually import the damn custom layers we made:
+from models.architecture import CrossSectionLayer, BSALayer
+
+# (X): Function | scripts > replica_data > generate_replica_data
 from scripts.replica_data import generate_replica_data
 
 # static_strings > argparse > description:
@@ -67,8 +77,20 @@ from statics.static_strings import _COLUMN_NAME_CROSS_SECTION_ERROR
 # (X):
 from statics.static_strings import _DIRECTORY_REPLICAS
 
+from statics.static_strings import _DIRECTORY_DATA
+
+from statics.static_strings import _DIRECTORY_DATA_RAW
+
+from statics.static_strings import _DIRECTORY_DATA_REPLICAS
+
 # (X):
 from statics.static_strings import _DIRECTORY_REPLICAS_LOSSES
+
+# (X):
+from statics.static_strings import _DIRECTORY_REPLICAS_FITS
+
+# (X):
+from statics.static_strings import _TF_FORMAT_KERAS
 
 # (X):
 from statics.static_strings import _FIGURE_FORMAT_EPS
@@ -92,7 +114,7 @@ from statics.static_strings import _DNN_VERBOSE_SETTING
 
 from statics.static_strings import _DNN_TRAIN_TEST_SPLIT_PERCENTAGE
 
-# (X): We tell rcParams to use LaTeX. Note: this will *crash* your 
+# (X): We tell rcParams to use LaTeX. Note: this will *crash* your
 # | version of the code if you do not have TeX distribution installed!
 plt.rcParams.update({
     "text.usetex": True,
@@ -118,7 +140,7 @@ plt.rcParams['xtick.minor.width'] = 0.5
 plt.rcParams['xtick.minor.visible'] = True
 
 # (X): rcParams dictating that we want ticks along the x-axis on *top* (opposite side) of the bounding box:
-plt.rcParams['xtick.top'] = True    
+plt.rcParams['xtick.top'] = True
 
 # (X): rcParams for the y-axis tick direction:
 plt.rcParams['ytick.direction'] = 'in'
@@ -222,11 +244,162 @@ def create_relevant_directories(
 
     return current_run_folder
 
+def extract_cff_layer_output(model, input_data):
+    """
+    ## Description:
+    Extracts the CFFs from an intermediate layer of the model.
+    Recall that in our architecture the CFFs are an intermediate
+    layer of 8 nodes that are *then* used to generate cross-
+    section and BSA data.
+    """
+    intermediate_layer_model = tf.keras.Model(
+        inputs = model.input,
+        outputs = model.get_layer("cff_output_layer").output)
+    
+    return intermediate_layer_model.predict(input_data)
+
+def get_replica_model_paths(current_replica_run_path):
+    """
+    ## Description:
+    A basic function that finds where the relevant .keras
+    replica files are, sorts them, and returns the sorted
+    array. Notice that what is returned is just a *list* of
+    *paths*!
+    """
+    return sorted([
+        os.path.join(current_replica_run_path, filename)
+        for filename in os.listdir(current_replica_run_path)
+        if filename.endswith(_TF_FORMAT_KERAS)
+    ])
+
+def make_predictions(current_replica_run_directory, input_data):
+    """
+    ## Description:
+    Assuming the replica method was performed, we now make
+    predictions with the replica averages.
+    """
+    # (X): Compute the path that we'll store the replica:
+    computed_path_of_replica_model = f"{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}"
+
+    # (X): Compute the path of the plots that we'll store the predictions in:
+    computed_path_to_plots = f"{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_FITS}"
+
+    # (X): Find a list of paths to the current replicas:
+    replica_paths = get_replica_model_paths(computed_path_of_replica_model)
+
+    # (X): Save this in memory so we can use it for plots later:
+    number_of_replicas = len(replica_paths)
+
+    if SETTING_VERBOSE or SETTING_DEBUG:
+        print(f"> Found {number_of_replicas} replicas.")
+
+    # (X): Initalize a list to append CFF predictions:
+    all_predictions = []
+
+    # (X): Start iterating over every replica found in the directory:
+    for replica in tqdm(
+        iterable = replica_paths,
+        desc = "Evaluating replicas",
+        colour = "green"):
+
+        # (X.Y): Obtain *the* TF replica model:
+        replica_model = tf.keras.models.load_model(
+            replica,
+            compile = False,
+            custom_objects = {
+                "CrossSectionLayer": CrossSectionLayer,
+                "BSALayer": BSALayer
+            })
+
+        # (X.Y): Run through the models makingpredictions:
+        predicted_cffs = extract_cff_layer_output(replica_model, input_data)
+
+        # (X.Y): Note the shape of `all_predictions` will be crazy:
+        all_predictions.append(predicted_cffs)
+
+    # (X):
+    all_predictions = np.array(all_predictions)
+
+    # (X): The last element in the tuple will be the number of CFFs:
+    number_of_cffs = all_predictions.shape[-1]
+
+    # (X): Compute the mean of each CFF by using .mean() along axis 1.
+    # | This is why it's important to have an idea of what the predictions
+    # | array looks like:
+    mean_predictions = np.mean(all_predictions, axis = 1)
+
+    # (X): TEMPORARY! Write out the names of the CFFs:
+    cff_names = ["Re[H]", "ImH", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
+
+    # (X): Now, begin making the predictions:
+    for index, cff_name in enumerate(cff_names):
+
+        # (X): Query the i-th "row" of this predictions array:
+        data = mean_predictions[:, index]
+
+        # (X): Run a fit to a Gaussian function immediately:
+        gaussain_mean, gaussian_stddev = norm.fit(data)
+
+        # (X): Initialize a figure instance for plotting:
+        cff_prediction_figure = plt.figure(figsize = (6, 4))
+        
+        # (X): Add the subplot, which returns an Axes:
+        cff_prediction_axis = cff_prediction_figure.add_subplot(1, 1, 1)
+
+        # (X): Add a histogram object to the axis:
+        cff_prediction_axis.hist(data, bins = 30, density = True, alpha = 0.6, color = 'skyblue', edgecolor = 'black')
+
+        # (X): We need an iterable for the Gaussian fit which will be a *line* to .plot() with:
+        burner_x_values_for_gaussian_fit = np.linspace(data.min(), data.max(), 200)
+
+        # (X): Now, fit to a Gaussian and plot the line:
+        cff_prediction_axis.plot(
+            burner_x_values_for_gaussian_fit,
+            norm.pdf(burner_x_values_for_gaussian_fit, gaussain_mean, gaussian_stddev),
+            color = "red",
+            linestyle = "--",
+            label = fr"Gaussian Fit: $\mu={gaussain_mean:.3f}$, $\sigma={gaussian_stddev:.3f}$")
+        
+        # (X): Set the title:
+        cff_prediction_axis.set_title(rf"${cff_name}$ Distribution Across $N_{{\mathrm{{replicas}}}} = {number_of_replicas}$")
+
+        # (X): Set the x-label:
+        cff_prediction_axis.set_xlabel(f"${cff_name}$ Value")
+
+        # (X): Set the y-label:
+        cff_prediction_axis.set_ylabel("Density")
+
+        # (X): Add a legend:
+        plt.legend()
+
+        # (X): Enforce a tight layout:
+        plt.tight_layout()
+
+        # (X): Save a version of the figure according to .eps format for Overleaf stuff:
+        cff_prediction_figure.savefig(
+            fname = f"{computed_path_to_plots}/{cff_name}_histogram.{_FIGURE_FORMAT_EPS}",
+            format = _FIGURE_FORMAT_EPS)
+        
+        # (X): Save an immediately-visualizable figure with vector graphics:
+        cff_prediction_figure.savefig(
+            fname = f"{computed_path_to_plots}/{cff_name}_histogram.{_FIGURE_FORMAT_SVG}",
+            format = _FIGURE_FORMAT_SVG)
+        
+        # (X): Close the figure to avoid memory explosions and etc.:
+        plt.close()
+
+        if SETTING_VERBOSE or SETTING_DEBUG:
+            print(f"> [VERBOSE]: Saved: {computed_path_to_plots}")
+
+    if SETTING_VERBOSE or SETTING_DEBUG:
+        print("> [VERBOSE]: All histograms generated!")
+
 def main(
         kinematics_dataframe_name: str,
         number_of_replicas: int,
         verbose: bool = False):
     """
+    ## Description:
     Main entry point to the local fitting procedure.
     """
     
@@ -275,7 +448,7 @@ def main(
             print(f"> [DEBUG]: Successfully generated replica data. Now displaying using df.head():\n {generated_replica_data.head()}")
 
         # (X): Use an f-string to compute the name *and location* of the file!
-        computed_path_and_name_of_replica_data = f"{current_replica_run_directory}/pseudodata_replica_{replica_number}_data.csv"
+        computed_path_and_name_of_replica_data = f"{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_RAW}/pseudodata_replica_{replica_number}_data.csv"
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed path and file name of current replica data: {computed_path_and_name_of_replica_data}")
@@ -366,6 +539,18 @@ def main(
         if SETTING_DEBUG or SETTING_VERBOSE:
             print(f"> Replica #{replica_index + 1} finished running!")
 
+        # (X): Compute the path that we'll store the replica:
+        computed_path_of_replica_model = f"{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}/replica_{replica_number}.{_TF_FORMAT_KERAS}"
+
+        if SETTING_DEBUG:
+            print(f"> Computed path to replica storage: {computed_path_of_replica_model}")
+
+        # (X): Now, save the replica:
+        dnn_model.save(computed_path_of_replica_model)
+
+        if SETTING_VERBOSE or SETTING_DEBUG:
+            print("> Saved replica!")
+
         # (X): Extract the 'loss' key from TF's history object. It has 
         # | loss vs. epoch data on it:
         training_loss_data = neural_network_training_history.history['loss']
@@ -435,6 +620,10 @@ def main(
         
         # (X): Closing figures:
         plt.close()
+
+    make_predictions(
+        current_replica_run_directory = current_replica_run_directory, 
+        input_data = raw_kinematics)
 
 
 if __name__ == "__main__":
