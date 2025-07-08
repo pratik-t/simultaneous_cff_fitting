@@ -98,6 +98,9 @@ from statics.static_strings import _FIGURE_FORMAT_EPS
 # (X):
 from statics.static_strings import _FIGURE_FORMAT_SVG
 
+# (X): 
+from statics.static_strings import _FIGURE_FORMAT_PNG
+
 from statics.static_strings import REQUIRED_SUBDIRECTORIES_LIST
 
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_EPOCHS
@@ -338,10 +341,10 @@ def make_predictions(current_replica_run_directory, input_data):
         data = mean_predictions[:, index]
 
         # (X): Run a fit to a Gaussian function immediately:
-        gaussain_mean, gaussian_stddev = norm.fit(data)
+        gaussian_mean, gaussian_stddev = norm.fit(data)
 
         # (X): Initialize a figure instance for plotting:
-        cff_prediction_figure = plt.figure(figsize = (6, 4))
+        cff_prediction_figure = plt.figure(figsize = (10, 5.5))
         
         # (X): Add the subplot, which returns an Axes:
         cff_prediction_axis = cff_prediction_figure.add_subplot(1, 1, 1)
@@ -355,19 +358,19 @@ def make_predictions(current_replica_run_directory, input_data):
         # (X): Now, fit to a Gaussian and plot the line:
         cff_prediction_axis.plot(
             burner_x_values_for_gaussian_fit,
-            norm.pdf(burner_x_values_for_gaussian_fit, gaussain_mean, gaussian_stddev),
+            norm.pdf(burner_x_values_for_gaussian_fit, gaussian_mean, gaussian_stddev),
             color = "red",
             linestyle = "--",
-            label = fr"Gaussian Fit: $\mu={gaussain_mean:.3f}$, $\sigma={gaussian_stddev:.3f}$")
+            label = fr"Gaussian Fit: $\mu={gaussian_mean:.3f}$, $\sigma={gaussian_stddev:.3f}$")
         
         # (X): Set the title:
         cff_prediction_axis.set_title(rf"${cff_name}$ Distribution Across $N_{{\mathrm{{replicas}}}} = {number_of_replicas}$")
 
         # (X): Set the x-label:
-        cff_prediction_axis.set_xlabel(f"${cff_name}$ Value")
+        cff_prediction_axis.set_xlabel(f"${cff_name}$ Value", rotation = 0, labelpad = 17.0, fontsize = 18)
 
         # (X): Set the y-label:
-        cff_prediction_axis.set_ylabel("Density")
+        cff_prediction_axis.set_ylabel("Density", rotation = 0, labelpad = 17.0, fontsize = 18)
 
         # (X): Add a legend:
         plt.legend()
@@ -384,6 +387,11 @@ def make_predictions(current_replica_run_directory, input_data):
         cff_prediction_figure.savefig(
             fname = f"{computed_path_to_plots}/{cff_name}_histogram.{_FIGURE_FORMAT_SVG}",
             format = _FIGURE_FORMAT_SVG)
+        
+        # (X): Save an immediately-visualizable figure with vector graphics:
+        cff_prediction_figure.savefig(
+            fname = f"{computed_path_to_plots}/{cff_name}_histogram.{_FIGURE_FORMAT_PNG}",
+            format = _FIGURE_FORMAT_PNG)
         
         # (X): Close the figure to avoid memory explosions and etc.:
         plt.close()
@@ -560,7 +568,7 @@ def main(
             
         # (X): Define a Figure object for plotting network loss:
         evaluation_figure = plt.figure(
-            figsize = (11, 8))
+            figsize = (10, 5.5))
         
         # (X): Add the subplot, which returns an Axes:
         evaluation_axis = evaluation_figure.add_subplot(1, 1, 1)
@@ -594,10 +602,10 @@ def main(
             label = "Validation Loss")
         
         # (X): Add the x-label:
-        evaluation_axis.set_xlabel('Epoch Number')
+        evaluation_axis.set_xlabel('Epoch Number', rotation = 0, labelpad = 17.0, fontsize = 18)
 
         # (X): Add the y-label:
-        evaluation_axis.set_ylabel('Scalar Loss')
+        evaluation_axis.set_ylabel('Scalar Loss', rotation = 0, labelpad = 17.0, fontsize = 18)
 
         # (X): Add the legend for clarity:
         plt.legend(fontsize = 17)
@@ -617,6 +625,11 @@ def main(
         evaluation_figure.savefig(
             fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_SVG}",
             format = _FIGURE_FORMAT_SVG)
+        
+        # (X): Save an immediately-visualizable figure with vector graphics:
+        evaluation_figure.savefig(
+            fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_PNG}",
+            format = _FIGURE_FORMAT_PNG)
         
         # (X): Closing figures:
         plt.close()
