@@ -506,7 +506,7 @@ def main(
         start_time_in_milliseconds = datetime.datetime.now().replace(microsecond = 0)
         
         if SETTING_DEBUG or SETTING_VERBOSE:
-            print(f"> Replica #{replica_index + 1} started at {start_time_in_milliseconds}...")
+            print(f"> [VERBOSE]: Replica #{replica_index + 1} started at {start_time_in_milliseconds}...")
 
         # (X): Initialize the model:
         dnn_model = build_simultaneous_model()
@@ -558,6 +558,14 @@ def main(
 
         if SETTING_VERBOSE or SETTING_DEBUG:
             print("> Saved replica!")
+
+        y_pred = dnn_model.predict(x_training).flatten()
+        plt.scatter(y_training, y_pred, alpha=0.6)
+        plt.xlabel("True Cross Section")
+        plt.ylabel("Predicted Cross Section")
+        plt.title("Model Fit: Prediction vs Ground Truth")
+        plt.grid(True)
+        plt.show()
 
         # (X): Extract the 'loss' key from TF's history object. It has 
         # | loss vs. epoch data on it:
