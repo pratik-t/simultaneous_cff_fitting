@@ -1,0 +1,1 @@
+We will use this directory to store the outputs and analysis of the fitting routines for research purposes. Files are listed by date.

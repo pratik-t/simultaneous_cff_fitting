@@ -46,11 +46,23 @@ from scripts.replica_data import generate_replica_data
 
 # static_strings > argparse > description:
 from statics.static_strings import _ARGPARSE_DESCRIPTION
+
+# static_strings > argparse > -d:
 from statics.static_strings import _ARGPARSE_ARGUMENT_INPUT_DATAFILE
+
+# static_strings > argparse > -nr:
 from statics.static_strings import _ARGPARSE_ARGUMENT_NUMBER_REPLICAS
+
+# static_strings > argparse > verbose:
 from statics.static_strings import _ARGPARSE_ARGUMENT_VERBOSE
+
+# static_strings > argparse > description for -d:
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_INPUT_DATAFILE
+
+# static_strings > argparse > description for -nr
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_NUMBER_REPLICAS
+
+# static_strings > argparse > description for verbose:
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_VERBOSE
 
 # static_strings > "k"
@@ -68,53 +80,64 @@ from statics.static_strings import _COLUMN_NAME_T_MOMENTUM_CHANGE
 # static_strings > "phi"
 from statics.static_strings import _COLUMN_NAME_AZIMUTHAL_PHI
 
-# (X):
+# static_strings > "F"
 from statics.static_strings import _COLUMN_NAME_CROSS_SECTION
 
-# (X):
+# static_strings > "F_err"
 from statics.static_strings import _COLUMN_NAME_CROSS_SECTION_ERROR
 
-# (X):
+# static_strings > /replicas
 from statics.static_strings import _DIRECTORY_REPLICAS
 
+# static_strings > /data
 from statics.static_strings import _DIRECTORY_DATA
 
+# static_strings > /data/raw
 from statics.static_strings import _DIRECTORY_DATA_RAW
 
+# static_strings > /data/replicas
 from statics.static_strings import _DIRECTORY_DATA_REPLICAS
 
-# (X):
+# static_strings > /replicas/losses
 from statics.static_strings import _DIRECTORY_REPLICAS_LOSSES
 
-# (X):
+# static_strings > /replicas/fits
 from statics.static_strings import _DIRECTORY_REPLICAS_FITS
 
-# (X):
+# static_strings > .keras
 from statics.static_strings import _TF_FORMAT_KERAS
 
-# (X):
+# static_strings > .eps
 from statics.static_strings import _FIGURE_FORMAT_EPS
 
-# (X):
+# static_strings > .svg
 from statics.static_strings import _FIGURE_FORMAT_SVG
 
-# (X): 
+# static_strings > .png
 from statics.static_strings import _FIGURE_FORMAT_PNG
 
+# static_strings > array of subdirectories required
 from statics.static_strings import REQUIRED_SUBDIRECTORIES_LIST
 
+# static_strings > number of epochs
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_EPOCHS
 
+# static_strings > batch size for training
 from statics.static_strings import _HYPERPARAMETER_BATCH_SIZE
 
+# static_strings > learning rate patience parameter
 from statics.static_strings import _HYPERPARAMETER_LR_PATIENCE
 
+# static_strings > learning rate factor
 from statics.static_strings import _HYPERPARAMETER_LR_FACTOR
 
+# static_strings > earlystop callback parameter
 from statics.static_strings import _HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER
 
+# static_strings > verbose output in TF
 from statics.static_strings import _DNN_VERBOSE_SETTING
 
+# static_strings > train/test split percentage
 from statics.static_strings import _DNN_TRAIN_TEST_SPLIT_PERCENTAGE
 
 # (X): We tell rcParams to use LaTeX. Note: this will *crash* your
@@ -128,7 +151,7 @@ plt.rcParams.update({
 plt.rcParams['xtick.direction'] = 'in'
 
 # (X): rcParams for the "major" (larger) x-axis vertical size:
-plt.rcParams['xtick.major.size'] = 5
+plt.rcParams['xtick.major.size'] = 8.5
 
 # (X): rcParams for the "major" (larger) x-axis horizonal width:
 plt.rcParams['xtick.major.width'] = 0.5
@@ -149,7 +172,7 @@ plt.rcParams['xtick.top'] = True
 plt.rcParams['ytick.direction'] = 'in'
 
 # (X): rcParams for the "major" (larger) y-axis vertical size:
-plt.rcParams['ytick.major.size'] = 5
+plt.rcParams['ytick.major.size'] = 8.5
 
 # (X): rcParams for the "major" (larger) y-axis horizonal width:
 plt.rcParams['ytick.major.width'] = 0.5
@@ -560,10 +583,10 @@ def main(
             print("> Saved replica!")
 
         y_pred = dnn_model.predict(x_training).flatten()
-        plt.scatter(y_training, y_pred, alpha=0.6)
-        plt.xlabel("True Cross Section")
-        plt.ylabel("Predicted Cross Section")
-        plt.title("Model Fit: Prediction vs Ground Truth")
+        plt.scatter(y_training, y_pred, alpha = 0.6)
+        plt.xlabel("True Cross Section", rotation = 0, fontsize = 18)
+        plt.ylabel("Predicted Cross Section", fontsize = 18)
+        plt.title("Model Fit: Prediction vs. Ground Truth", rotation = 0, fontsize = 20)
         plt.grid(True)
         plt.show()
 
@@ -613,7 +636,7 @@ def main(
         evaluation_axis.set_xlabel('Epoch Number', rotation = 0, labelpad = 17.0, fontsize = 18)
 
         # (X): Add the y-label:
-        evaluation_axis.set_ylabel('Scalar Loss', rotation = 0, labelpad = 17.0, fontsize = 18)
+        evaluation_axis.set_ylabel('Scalar Loss', rotation = 0, labelpad = 26.0, fontsize = 18)
 
         # (X): Add the legend for clarity:
         plt.legend(fontsize = 17)
