@@ -73,48 +73,42 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         angle phi, and the four CFFs. With these 9 inputs, we *compute* a single output that 
         we call the cross section.
         """
-        
 
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Received inputs: {inputs}")
+        
+        # (1): Extract only the kinematics, which are *in order*: [Q², x_B, t, k, φ]:
         kinematics = inputs[..., :5]
 
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Extracted kinematics part of TF layer inputs: {kinematics}")
+
+        # (2): Extract only the CFFs, what are *in order*: [Re[H], Im[H], Re[Ht], Im[Ht], Re[E], Im[H], Re[Et], Im[Et]]:
         cffs = inputs[..., 5:]
 
-        # return tf.reduce_sum(cffs, axis=-1, keepdims=True)
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Extracted CFF part of TF layer inputs: {cffs}")
 
-        # (X): DUMMY COMPUTATION FOR NOW:
-        differential_cross_section = self.compute_cross_section([kinematics, cffs])
+        # (3): To please TF, concatenate the inputs first:
+        concatenated_layer_input = [kinematics, cffs]
 
-        # (X): The calculation requires that we use TF not NumPy to do stuff:
-        # backend.set_backend('tensorflow')
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Casted/concatenated kinematics and CFFs for passage into TF layer: {concatenated_layer_input}")
 
-        # # (X): Set up the BKM10 kinematic inputs:
-        # bkm_inputs = BKM10Inputs(
-        #     squared_Q_momentum_transfer = q_squared,
-        #     x_Bjorken = x_bjorken,
-        #     squared_hadronic_momentum_transfer_t = t,
-        #     lab_kinematics_k = k)
+        # (4): Immediately pass the concatenated array into the layer's "computation function":
+        differential_cross_section = self.compute_cross_section(concatenated_layer_input)
 
-        # # (X): Set up the BKM10 CFF inputs:
-        # cff_inputs = CFFInputs(
-        #     compton_form_factor_h = backend.math.complex(real_H, imag_H),
-        #     compton_form_factor_h_tilde = backend.math.complex(real_Ht, imag_Ht),
-        #     compton_form_factor_e = backend.math.complex(real_E, imag_E),
-        #     compton_form_factor_e_tilde = backend.math.complex(real_Et, imag_Et))
+        # (Note): We were not able to successfully use the bkm10 library here due to its complicated
+        # | use of the native `complex` class. When `complex` multiplies floats in standard Python or
+        # | NumPy, everything is fine. But when TF tries to do this, it requires that essentially
+        # | everything be `complex64` because the CFFs are of this type. It will require major 
+        # | refactoring in order to discard the use of the `complex` data type in the bkm10 lib, and
+        # | we do not have time at the moment to do it.
 
-        # # (X): Construct the required configuration dictionary:
-        # configuration = {
-        #     "kinematics": bkm_inputs,
-        #     "cff_inputs": cff_inputs,
-        #     "target_polarization": self.target_polarization,
-        #     "lepton_beam_polarization": self.lepton_beam_polarization,
-        #     "using_ww": self.using_ww
-        # }
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Computed cross section values:\n{differential_cross_section}")
 
-        # # (X): Compute the differential cross section accordingly:
-        # differential_cross_section = DifferentialCrossSection(configuration, verbose = True).compute_cross_section(phi)
-
-        # (X): Re-cast sigma into a single value (I think):
-        # return tf.expand_dims(differential_cross_section, axis = -1)
+        # (5): Return the computation: a *single value* for the cross-section:
         return differential_cross_section
     
     @tf.function
@@ -129,7 +123,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Received inputs: {inputs}")
 
-        # (X): Unpack the inputs into the CFFs and the kinematics.
+        # (1): Unpack the inputs into the CFFs and the kinematics.
         # | The inputs will be a KerasTensor of shape (None, 5) and another
         # | KerasTensor of shape (None, 8). That is, the five kinematic
         # | quantities and the eight numbers for the CFFs.
@@ -141,109 +135,109 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Obtained CFFs from inputs: {cffs}")
 
-        # (X): Extract the eight CFFs from the DNN:
+        # (2): Extract the eight CFFs from the DNN:
         real_H, imag_H, real_E, imag_E, real_Ht, imag_Ht, real_Et, imag_Et = tf.unstack(cffs, axis = -1)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Unstacked CFFs\n> {real_H, imag_H, real_E, imag_E, real_Ht, imag_Ht, real_Et, imag_Et}")
 
-        # (X): Extract the kinematics from the DNN:
+        # (3): Extract the kinematics from the DNN:
         q_squared, x_bjorken, t, k, phi = tf.unstack(kinematics, axis = -1)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Unstacked kinematics\n> {q_squared, x_bjorken, t, k, phi}")
 
-        # (X): Compute epsilon:
+        # (4): Compute epsilon:
         epsilon = self.calculate_kinematics_epsilon(q_squared, x_bjorken)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed epsilon: {epsilon}")
 
-        # (X): Compute "y":
+        # (5): Compute "y":
         y = self.calculate_kinematics_lepton_energy_fraction_y(q_squared, k, epsilon)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed lepton_energy_fraction: {y}")
 
-        # (X): Comute skewness "xi":
+        # (6): Comute skewness "xi":
         xi = self.calculate_kinematics_skewness_parameter(q_squared, x_bjorken, t)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed skewness: {xi}")
 
-        # (X): Calculate t_minimum
+        # (7): Calculate t_minimum
         t_min = self.calculate_kinematics_t_min(q_squared, x_bjorken, epsilon)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed t mimumum: {t_min}")
 
-        # (X): Calculate t':
+        # (8): Calculate t':
         t_prime = self.calculate_kinematics_t_prime(t, t_min)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed t prime: {t_prime}")
 
-        # (X): Calculate Ktilde:
+        # (9): Calculate Ktilde:
         k_tilde = self.calculate_kinematics_k_tilde(q_squared, x_bjorken, y, t, epsilon, t_min)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed K tilde: {k_tilde}")
 
-        # (X): Calculate K:
+        # (10): Calculate K:
         capital_k = self.calculate_kinematics_k(q_squared, y, epsilon, k_tilde)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed K: {capital_k}")
 
-        # (X): Calculate k.delta:
+        # (11): Calculate k.delta:
         k_dot_delta = self.calculate_k_dot_delta(q_squared, x_bjorken, t, phi, epsilon, y, k)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed K.delta: {k_dot_delta}")
 
-        # (X): Calculate P_{1}:
+        # (12): Calculate P_{1}:
         p1 = self.calculate_lepton_propagator_p1(q_squared, k_dot_delta)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed propagator p1: {p1}")
 
-        # (X): Calculate P_{2}:
+        # (13): Calculate P_{2}:
         p2 = self.calculate_lepton_propagator_p2(q_squared, t, k_dot_delta)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed propagator p1: {p2}")
 
-        # (X): Calculate the Electric Form Factor
+        # (14): Calculate the Electric Form Factor
         fe = self.calculate_form_factor_electric(t)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed F_E: {fe}")
 
-        # (12): Calculate the Magnetic Form Factor
+        # (15): Calculate the Magnetic Form Factor
         fg = self.calculate_form_factor_magnetic(fe)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed F_G: {fg}")
 
-        # (13): Calculate the Pauli Form Factor, F2:
+        # (16): Calculate the Pauli Form Factor, F2:
         f2 = self.calculate_form_factor_pauli_f2(t, fe, fg)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed F_2: {f2}")
 
-        # (14): Calculate the Dirac Form Factor, F1:
+        # (17): Calculate the Dirac Form Factor, F1:
         f1 = self.calculate_form_factor_dirac_f1(fg, f2)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed F_1: {f1}")
 
-        # (X): Calculate prefactor:
+        # (18): Calculate prefactor:
         prefactor = self.calculate_bkm10_cross_section_prefactor(q_squared, x_bjorken, epsilon, y)
         
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed BKM10 cross-section prefactor: {prefactor}")
 
-        # (X): Calculate the Curly C:
+        # (19): Calculate the Curly C:
         curly_c_i_real, curly_c_i_imag = self.calculate_curly_C_unpolarized_interference(
             q_squared, x_bjorken, t, f1, f2, real_H, imag_H, real_Ht, imag_Ht, real_E, imag_E)
         
@@ -251,7 +245,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             print(f"> [DEBUG]: Computed real part of Curly C^I: {curly_c_i_real}")
             print(f"> [DEBUG]: Computed imaginary part of Curly C^I: {curly_c_i_imag}")
         
-        # (X): Calculate the Curly C,V:
+        # (20): Calculate the Curly C,V:
         curly_c_i_v_real, curly_c_i_v_imag = self.calculate_curly_C_unpolarized_interference_V(
             q_squared, x_bjorken, t, f1, f2, real_H, imag_H, real_E, imag_E)
         
@@ -259,7 +253,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             print(f"> [DEBUG]: Computed real part of Curly C^I,V: {curly_c_i_v_real}")
             print(f"> [DEBUG]: Computed imaginary part of Curly C^I,V: {curly_c_i_v_imag}")
         
-        # (X): Calculate the Curly C,A:
+        # (21): Calculate the Curly C,A:
         curly_c_i_a_real, curly_c_i_a_imag = self.calculate_curly_C_unpolarized_interference_A(
             q_squared, x_bjorken, t, f1, f2, real_Ht, imag_Ht)
 
@@ -267,7 +261,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             print(f"> [DEBUG]: Computed real part of Curly C^I,A: {curly_c_i_a_real}")
             print(f"> [DEBUG]: Computed imaginary part of Curly C^I,A: {curly_c_i_a_imag}")
         
-        # (X): Calculate the common factor:
+        # (22): Calculate the common factor:
         common_factor = (tf.sqrt(tf.constant(2.0, dtype = tf.float32) / q_squared) * k_tilde / (tf.constant(2.0, dtype = tf.float32) - x_bjorken))
 
         if SETTING_DEBUG:
@@ -308,7 +302,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I,V with Feff: {curly_c_i_v_imag_eff}")
         
         # (X): Multiply the common factor with the Curly C^I,V thanks to TensorFlow...
-        curly_c_i_v_real_eff = common_factor * curly_c_i_v_real_eff 
+        curly_c_i_v_real_eff = common_factor * curly_c_i_v_real_eff
         curly_c_i_v_imag_eff = common_factor * curly_c_i_v_imag_eff
 
         if SETTING_DEBUG:
@@ -326,92 +320,126 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I,V with Feff: {curly_c_i_a_imag_eff}")
 
         # (X): Multiply the common factor with the Curly C^I,A thanks to TensorFlow...
-        curly_c_i_real_eff = common_factor * curly_c_i_real_eff 
+        curly_c_i_real_eff = common_factor * curly_c_i_real_eff
         curly_c_i_a_real_eff = common_factor * curly_c_i_a_real_eff
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Finally computed real part of Curly C^I,A with Feff: {curly_c_i_real_eff}")
             print(f"> [DEBUG]: Finally computed imaginary part of Curly C^I,A with Feff: {curly_c_i_a_real_eff}")
 
-        # (X): Compute the three n = 0 unpolarized coefficients with TF:
+        # (X): Compute the three C++(n = 0) unpolarized coefficients with TF:
         c0pp_tf = self.calculate_c_0_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, k_tilde)
         c0ppv_tf = self.calculate_c_0_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, k_tilde)
         c0ppa_tf = self.calculate_c_0_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, k_tilde)
 
-        # (X): Compute the three n = 1 unpolaried coefficients with TF:
+        # (X): Compute the three C++(n = 1) unpolaried coefficients with TF:
         c1pp_tf = self.calculate_c_1_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
         c1ppv_tf = self.calculate_c_1_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
         c1ppa_tf = self.calculate_c_1_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
 
-        # (X): Compute the three n = 2 unpolaried coefficients with TF:
+        # (X): Compute the three C++(n = 2) unpolaried coefficients with TF:
         c2pp_tf = self.calculate_c_2_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
         c2ppv_tf = self.calculate_c_2_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
         c2ppa_tf = self.calculate_c_2_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
 
-        # (X): Compute the three n = 3 unpolaried coefficients with TF:
+        # (X): Compute the three C++(n = 3) unpolaried coefficients with TF:
         c3pp_tf = self.calculate_c_3_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
         c3ppv_tf = self.calculate_c_3_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
         c3ppa_tf = self.calculate_c_3_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
 
-        # (X): Compute the three n = 0 unpolarized coefficients with TF:
+        # (X): Compute the three C0+(n = 0) unpolarized coefficients with TF:
         c00p_tf = self.calculate_c_0_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
         c00pv_tf = self.calculate_c_0_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
         c00pa_tf = self.calculate_c_0_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, capital_k)
 
-        # (X): Compute the three n = 1 unpolaried coefficients with TF:
+        # (X): Compute the three C0+(n = 1) unpolaried coefficients with TF:
         c10p_tf = self.calculate_c_1_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, t_prime)
         c10pv_tf  = self.calculate_c_1_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, k_tilde)
         c10pa_tf  = self.calculate_c_1_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, k_tilde)
 
-        # (X): Compute the three n = 2 unpolaried coefficients with TF:
+        # (X): Compute the three C0+(n = 2) unpolaried coefficients with TF:
         c20p_tf = self.calculate_c_2_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
         c20pv_tf = self.calculate_c_2_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
         c20pa_tf = self.calculate_c_2_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
 
-        # (X): Compute the three n = 3 unpolaried coefficients with TF:
+        # (X): Compute the three C0+(n = 3) unpolaried coefficients with TF:
         c30p_tf = tf.zeros_like(c0pp_tf)
         c30pv_tf = tf.zeros_like(c0pp_tf)
         c30pa_tf = tf.zeros_like(c0pp_tf)
 
+        # (X): Compute the three S++(n = 1) unpolaried coefficients with TF:
+        s1pp_tf = self.calculate_s_1_plus_plus_unpolarized(self.lepton_beam_polarization, q_squared, x_bjorken, epsilon, y, t_prime, capital_k)
+        s1ppv_tf = self.calculate_s_1_plus_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, epsilon, y, t_prime, capital_k)
+        s1ppa_tf = self.calculate_s_1_plus_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
+
+        # (X): Compute the three S++(n = 2) unpolaried coefficients with TF:
+        s2pp_tf = self.calculate_s_2_plus_plus_unpolarized(self.lepton_beam_polarization, q_squared, x_bjorken, epsilon, y, t_prime)
+        s2ppv_tf = self.calculate_s_2_plus_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y)
+        s2ppa_tf = self.calculate_s_2_plus_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, t_prime)
+
+        # (X): Compute the three S0+(n = 1) unpolaried coefficients with TF:
+        s10p_tf = self.calculate_s_1_zero_plus_unpolarized(self.lepton_beam_polarization, q_squared, epsilon, y, k_tilde)
+        s10pv_tf  = self.calculate_s_1_zero_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y)
+        s10pa_tf  = self.calculate_s_1_zero_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+        # (X): Compute the three S0+(n = 2) unpolaried coefficients with TF:
+        s20p_tf = self.calculate_s_2_zero_plus_unpolarized(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
+        s20pv_tf = self.calculate_s_2_zero_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
+        s20pa_tf = self.calculate_s_2_zero_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
+
         # (X): Sum together all the BH contributions:
+        # | This is 0 for now!
         bh_contribution = tf.zeros_like(c0pp_tf)
 
         # (X): Sum together all the DVCS contributions:
+        # | This is 0 for now!
         dvcs_contribution = tf.zeros_like(c0pp_tf)
 
         # (X): Obtain the prefactor for the interference contribution:
         interference_prefactor = tf.constant(1.0, dtype = tf.float32) / (x_bjorken * y**3 * t * p1 * p2)
 
-        # (X): Obtain the c__{0} coefficient:
+        # (X): Obtain the c_{0} coefficient:
         c_0 = (
             c0pp_tf * curly_c_i_real + c0ppv_tf * curly_c_i_v_real + c0ppa_tf * curly_c_i_a_real +
             c00p_tf * curly_c_i_real_eff + c00pv_tf * curly_c_i_v_real_eff + c00pa_tf * curly_c_i_a_real_eff)
         
-        # (X): Obtain the c__{1} coefficient:
+        # (X): Obtain the c_{1} coefficient:
         c_1 = (
             c1pp_tf * curly_c_i_real + c1ppv_tf * curly_c_i_v_real + c1ppa_tf * curly_c_i_a_real +
             c10p_tf * curly_c_i_real_eff + c10pv_tf * curly_c_i_v_real_eff + c10pa_tf * curly_c_i_a_real_eff)
         
-        # (X): Obtain the c__{2} coefficient:
+        # (X): Obtain the c_{2} coefficient:
         c_2 = (
             c2pp_tf * curly_c_i_real + c2ppv_tf * curly_c_i_v_real + c2ppa_tf * curly_c_i_a_real +
             c20p_tf * curly_c_i_real_eff + c20pv_tf * curly_c_i_v_real_eff + c20pa_tf * curly_c_i_a_real_eff)
         
-        # (X): Obtain the c__{3} coefficient:
+        # (X): Obtain the c_{3} coefficient:
         c_3 = (
             c3pp_tf * curly_c_i_real + c3ppv_tf * curly_c_i_v_real + c3ppa_tf * curly_c_i_a_real +
             c30p_tf * curly_c_i_real_eff + c30pv_tf * curly_c_i_v_real_eff + c30pa_tf * curly_c_i_a_real_eff)
+        
+        # (X): Obtain the s_{1} coefficient:
+        s_1 = (
+            s1pp_tf * curly_c_i_imag + s1ppv_tf * curly_c_i_v_imag + s1ppa_tf * curly_c_i_a_imag +
+            s10p_tf * curly_c_i_imag_eff + s10pv_tf * curly_c_i_v_imag_eff + s10pa_tf * curly_c_i_a_imag_eff)
+        
+        # (X): Obtain the s_{2} coefficient:
+        s_2 = (
+            s2pp_tf * curly_c_i_imag + s2ppv_tf * curly_c_i_v_imag + s2ppa_tf * curly_c_i_a_imag +
+            s20p_tf * curly_c_i_imag_eff + s20pv_tf * curly_c_i_v_imag_eff + s20pa_tf * curly_c_i_a_imag_eff)
 
         # (X): Sum together all the Interference contributions:
         interference_contribution = (interference_prefactor * (
             c_0 * tf.cos(tf.constant(0.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
             c_1 * tf.cos(tf.constant(1.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
             c_2 * tf.cos(tf.constant(2.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
-            c_3 * tf.cos(tf.constant(3.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))
+            c_3 * tf.cos(tf.constant(3.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) + 
+            s_1 * tf.sin(tf.constant(1.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
+            s_2 * tf.sin(tf.constant(2.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))
         ))
 
         # (X): Compute the cross-section:
-        cross_section = (prefactor * (
+        cross_section = self.convert_to_nb_over_gev4(prefactor * (
             bh_contribution + dvcs_contribution + interference_contribution
         ))
 
@@ -430,13 +458,38 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     
     @tf.function
     def convert_degrees_to_radians(self, degrees):
-        return (degrees * tf.constant(np.pi, dtype = tf.float32) / 180.)
+        """
+        ## Description:
+        Converts a number in degrees (0-360) to radians
+        using the standard formula.
+        """
+        return (degrees * tf.constant(np.pi, dtype = tf.float32) / tf.constant(180.0, dtype = tf.float32))
     
+    @tf.function
+    def convert_to_nb_over_gev4(self, number: float) -> float:
+        """
+        ## Description:
+        Convert a number in units of GeV^{-6} to nb/GeV^{4}. For reference,
+        the number is 389379 or about 3.9e6 (= 4.0e6), and it is 
+        multiplied by whatever `number` is passed in.
+
+        ## Arguments:
+
+            1. number (float)
+
+        ## Returns:
+
+            1. number_in_nb_over_GeV4 (float)
+        """
+        _CONVERSION_FACTOR = .389379 * 1000000.
+        number_in_nb_over_GeV4 = tf.constant(_CONVERSION_FACTOR, dtype = tf.float32) * number
+        return number_in_nb_over_GeV4
+
     @tf.function
     def calculate_kinematics_epsilon(
         self,
         squared_Q_momentum_transfer: float,
-        x_Bjorken: float, 
+        x_Bjorken: float,
         verbose: bool = False) -> float:
         try:
 
@@ -457,7 +510,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_kinematics_lepton_energy_fraction_y(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         lab_kinematics_k: float,
         epsilon: float,
         verbose: bool = False) -> float:
@@ -509,9 +562,9 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_kinematics_t_min(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
-        epsilon: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        epsilon: float,
         verbose: bool = False) -> float:
         try:
 
@@ -563,11 +616,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_kinematics_k_tilde(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         x_Bjorken: float,
         lepton_energy_fraction_y: float,
         squared_hadronic_momentum_transfer_t: float,
-        epsilon: float, 
+        epsilon: float,
         squared_hadronic_momentum_transfer_t_minimum: float,
         verbose: bool = False) -> float:
         try:
@@ -601,7 +654,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_kinematics_k(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         lepton_energy_fraction_y: float,
         epsilon: float,
         k_tilde: float,
@@ -628,11 +681,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_k_dot_delta(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         azimuthal_phi: float,
-        epsilon: float, 
+        epsilon: float,
         lepton_energy_fraction_y: float,
         kinematic_k: float,
         verbose: bool = False):
@@ -676,7 +729,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_lepton_propagator_p1(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         k_dot_delta: float,
         verbose:bool = False) -> float:
         try:
@@ -694,7 +747,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_lepton_propagator_p2(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         squared_hadronic_momentum_transfer_t: float,
         k_dot_delta: float,
         verbose: bool = False) -> float:
@@ -830,10 +883,10 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_bkm10_cross_section_prefactor(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
-        epsilon: float, 
-        lepton_energy_fraction_y: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
         verbose: bool = False) -> float:
         try:
 
@@ -859,7 +912,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_curly_C_unpolarized_interference(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         Dirac_form_factor_F1: float,
@@ -894,7 +947,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_curly_C_unpolarized_interference_V(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         Dirac_form_factor_F1: float,
@@ -926,7 +979,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_curly_C_unpolarized_interference_A(
         self,
-        squared_Q_momentum_transfer: float, 
+        squared_Q_momentum_transfer: float,
         x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         Dirac_form_factor_F1: float,
@@ -1005,11 +1058,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_0_plus_plus_unpolarized_V(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         k_tilde: float,
         verbose: bool = False) -> float:
 
@@ -1062,11 +1115,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_0_plus_plus_unpolarized_A(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         k_tilde: float,
         verbose: bool = False) -> float:
         try:
@@ -1118,11 +1171,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_1_plus_plus_unpolarized(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
         try:
@@ -1171,8 +1224,8 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_1_plus_plus_unpolarized_V(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
         lepton_energy_fraction_y: float,
@@ -1210,11 +1263,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_1_plus_plus_unpolarized_A(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         t_prime: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
@@ -1264,8 +1317,8 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_2_plus_plus_unpolarized(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
         lepton_energy_fraction_y: float,
@@ -1306,11 +1359,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_2_plus_plus_unpolarized_V(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         t_prime: float,
         k_tilde: float,
         verbose: bool = False) -> float:
@@ -1348,11 +1401,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_2_plus_plus_unpolarized_A(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         t_prime: float,
         k_tilde: float,
         verbose: bool = False) -> float:
@@ -1394,8 +1447,8 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_3_plus_plus_unpolarized(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
         lepton_energy_fraction_y: float,
@@ -1435,11 +1488,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_3_plus_plus_unpolarized_V(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
         try:
@@ -1473,11 +1526,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_3_plus_plus_unpolarized_A(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         t_prime: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
@@ -1509,11 +1562,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_0_zero_plus_unpolarized(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
         try:
@@ -1541,11 +1594,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_0_zero_plus_unpolarized_V(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
         try:
@@ -1576,11 +1629,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_0_zero_plus_unpolarized_A(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
         try:
@@ -1614,11 +1667,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_1_zero_plus_unpolarized(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         t_prime: float,
         verbose: bool = False) -> float:
         try:
@@ -1664,11 +1717,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_1_zero_plus_unpolarized_V(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         k_tilde: float,
         verbose: bool = False) -> float:
         try:
@@ -1702,11 +1755,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_1_zero_plus_unpolarized_A(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         k_tilde: float,
         verbose: bool = False) -> float:
         try:
@@ -1752,11 +1805,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_2_zero_plus_unpolarized(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
         try:
@@ -1793,11 +1846,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_2_zero_plus_unpolarized_V(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
         try:
@@ -1831,11 +1884,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
     @tf.function
     def calculate_c_2_zero_plus_unpolarized_A(
         self,
-        squared_Q_momentum_transfer: float, 
-        x_Bjorken: float, 
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
         squared_hadronic_momentum_transfer_t: float,
         epsilon: float,
-        lepton_energy_fraction_y: float, 
+        lepton_energy_fraction_y: float,
         t_prime: float,
         shorthand_k: float,
         verbose: bool = False) -> float:
@@ -1869,6 +1922,506 @@ class CrossSectionLayer(tf.keras.layers.Layer):
 
         # (9): Return the coefficient:
         return c_2_zero_plus_unp_A
+
+    @tf.function
+    def calculate_s_1_plus_plus_unpolarized(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        t_prime: float,
+        shorthand_k: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the quantity t'/Q^{2}:
+            tPrime_over_Q_squared = t_prime / squared_Q_momentum_transfer
+
+            # (3): Calculate the bracket term:
+            bracket_term = tf.constant(1.0, dtype = tf.float32) + ((tf.constant(1.0, dtype = tf.float32) - x_Bjorken + 0.5 * (root_one_plus_epsilon_squared - 1.)) / root_one_plus_epsilon_squared**2) * tPrime_over_Q_squared
+            
+            # (4): Calculate the prefactor:
+            prefactor = tf.constant(8.0, dtype = tf.float32) * lepton_helicity * shorthand_k * lepton_energy_fraction_y * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) / root_one_plus_epsilon_squared**2
+
+            # (5): Calculate the coefficient
+            s_1_plus_plus_unp = prefactor * bracket_term
+            
+            # (5.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_1_plus_plus_unp to be:\n{s_1_plus_plus_unp}")
+
+            # (6): Return the coefficient:
+            return s_1_plus_plus_unp
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_1_plus_plus_unp for Interference Term:\n> {ERROR}")
+            return 0.
+
+    @tf.function
+    def calculate_s_1_plus_plus_unpolarized_V(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        shorthand_k: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the recurrent quantity t/Q^{2}:
+            t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (3): Calculate the bracket term:
+            bracket_term = root_one_plus_epsilon_squared - tf.constant(1.0, dtype = tf.float32) + (tf.constant(1.0, dtype = tf.float32) + root_one_plus_epsilon_squared - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) * t_over_Q_squared
+
+            # (4): Calculate the prefactor:
+            prefactor = -tf.constant(8.0, dtype = tf.float32) * lepton_helicity * shorthand_k * lepton_energy_fraction_y * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * x_Bjorken * t_over_Q_squared / root_one_plus_epsilon_squared**4
+
+            # (5): Calculate the coefficient
+            s_1_plus_plus_unp_V = prefactor * bracket_term
+            
+            # (5.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_1_plus_plus_unp_V to be:\n{s_1_plus_plus_unp_V}")
+
+            # (6): Return the coefficient:
+            return s_1_plus_plus_unp_V
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_1_plus_plus_unp_V for Interference Term:\n> {ERROR}")
+            return 0.
+        
+    @tf.function
+    def calculate_s_1_plus_plus_unpolarized_A(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        t_prime: float,
+        shorthand_k: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the quantity t/Q^{2}:
+            t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (3): Calculate the quantity t'/Q^{2}:
+            tPrime_over_Q_squared = t_prime / squared_Q_momentum_transfer
+
+            # (4): Calculate the bracket term:
+            one_minus_2xb = tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken
+
+            # (5): Calculate the bracket term:
+            bracket_term = tf.constant(1.0, dtype = tf.float32) - one_minus_2xb * (one_minus_2xb + root_one_plus_epsilon_squared) * tPrime_over_Q_squared / (tf.constant(2.0, dtype = tf.float32) * root_one_plus_epsilon_squared)
+
+            # (6): Calculate the prefactor:
+            prefactor = tf.constant(8.0, dtype = tf.float32) * lepton_helicity * shorthand_k * lepton_energy_fraction_y * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * t_over_Q_squared / root_one_plus_epsilon_squared**2
+
+            # (7): Calculate the coefficient
+            s_1_plus_plus_unp_A = prefactor * bracket_term
+            
+            # (7.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_1_plus_plus_unp_A to be:\n{s_1_plus_plus_unp_A}")
+
+            # (8): Return the coefficient:
+            return s_1_plus_plus_unp_A
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_1_plus_plus_unp_A for Interference Term:\n> {ERROR}")
+            return 0.
+
+    @tf.function
+    def calculate_s_2_plus_plus_unpolarized(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        t_prime: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the quantity t'/Q^{2}:
+            tPrime_over_Q_squared = t_prime / squared_Q_momentum_transfer
+
+            # (3): Calculate a fancy, annoying quantity:
+            fancy_y_stuff = tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)
+
+            # (4): Calculate the first bracket term:
+            first_bracket_term = (epsilon**2 - x_Bjorken * (root_one_plus_epsilon_squared - 1.)) / (tf.constant(1.0, dtype = tf.float32) + root_one_plus_epsilon_squared - tf.constant(2.0, dtype = tf.float32) * x_Bjorken)
+
+            # (5): Calculate the second bracket term:
+            second_bracket_term = (tf.constant(2.0, dtype = tf.float32) * x_Bjorken + epsilon**2) * tPrime_over_Q_squared / (tf.constant(2.0, dtype = tf.float32) * root_one_plus_epsilon_squared)
+
+            # (6): Calculate the prefactor:
+            prefactor = -tf.constant(4.0, dtype = tf.float32) * lepton_helicity * fancy_y_stuff * lepton_energy_fraction_y * (tf.constant(1.0, dtype = tf.float32) + root_one_plus_epsilon_squared - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) * tPrime_over_Q_squared / root_one_plus_epsilon_squared**3
+
+            # (7): Calculate the coefficient
+            s_2_plus_plus_unp = prefactor * (first_bracket_term - second_bracket_term)
+            
+            # (7.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_2_plus_plus_unp to be:\n{s_2_plus_plus_unp}")
+
+            # (6): Return the coefficient:
+            return s_2_plus_plus_unp
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_2_plus_plus_unp for Interference Term:\n> {ERROR}")
+            return 0.
+        
+    @tf.function
+    def calculate_s_2_plus_plus_unpolarized_V(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the quantity t/Q^{2}:
+            t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (3): Calculate a fancy, annoying quantity:
+            fancy_y_stuff = tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)
+
+            # (4): Calculate the bracket term:
+            one_minus_2xb = tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken
+
+            # (5): Calculate the bracket term:
+            bracket_term = root_one_plus_epsilon_squared - tf.constant(1.0, dtype = tf.float32) + (one_minus_2xb + root_one_plus_epsilon_squared) * t_over_Q_squared
+
+            # (6): Calculate the parentheses term:
+            parentheses_term = tf.constant(1.0, dtype = tf.float32) - one_minus_2xb * t_over_Q_squared
+
+            # (7): Calculate the prefactor:
+            prefactor = -tf.constant(4.0, dtype = tf.float32) * lepton_helicity * fancy_y_stuff * lepton_energy_fraction_y * x_Bjorken * t_over_Q_squared / root_one_plus_epsilon_squared**4
+
+            # (8): Calculate the coefficient
+            s_2_plus_plus_unp_V = prefactor * parentheses_term * bracket_term
+            
+            # (8.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_2_plus_plus_unp_V to be:\n{s_2_plus_plus_unp_V}")
+
+            # (9): Return the coefficient:
+            return s_2_plus_plus_unp_V
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_2_plus_plus_unp_V for Interference Term:\n> {ERROR}")
+            return
+        
+    @tf.function
+    def calculate_s_2_plus_plus_unpolarized_A(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        t_prime: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the quantity t/Q^{2}:
+            t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (3): Calculate the quantity t'/Q^{2}:
+            tPrime_over_Q_squared = t_prime / squared_Q_momentum_transfer
+
+            # (4): Calculate a fancy, annoying quantity:
+            fancy_y_stuff = tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)
+
+            # (5): Calculate the last term:
+            last_term = tf.constant(1.0, dtype = tf.float32) + (tf.constant(4.0, dtype = tf.float32) * (tf.constant(1.0, dtype = tf.float32) - x_Bjorken) * x_Bjorken + epsilon**2) * t_over_Q_squared / (4. - tf.constant(2.0, dtype = tf.float32) * x_Bjorken + 3. * epsilon**2)
+
+            # (6): Calculate the middle term:
+            middle_term = tf.constant(1.0, dtype = tf.float32) + root_one_plus_epsilon_squared - tf.constant(2.0, dtype = tf.float32) * x_Bjorken
+
+            # (7): Calculate the prefactor:
+            prefactor = -tf.constant(8.0, dtype = tf.float32) * lepton_helicity * fancy_y_stuff * lepton_energy_fraction_y * t_over_Q_squared * tPrime_over_Q_squared / root_one_plus_epsilon_squared**4
+
+            # (8): Calculate the coefficient
+            s_2_plus_plus_unp_A = prefactor * middle_term * last_term
+            
+            # (8.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_2_plus_plus_unp_A to be:\n{s_2_plus_plus_unp_A}")
+
+            # (9): Return the coefficient:
+            return s_2_plus_plus_unp_A
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_2_plus_plus_unp_A for Interference Term:\n> {ERROR}")
+            return 0.
+        
+    @tf.function
+    def calculate_s_1_zero_plus_unpolarized(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        k_tilde: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the  quantity (1 + epsilon^2)^{2}:
+            root_one_plus_epsilon_squared = (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**2
+
+            # (2): Calculate the huge y quantity:
+            y_quantity = tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)))
+
+            # (3): Calculate the coefficient
+            s_1_zero_plus_unp = tf.constant(8.0, dtype = tf.float32) * lepton_helicity * tf.sqrt(2.) * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * lepton_energy_fraction_y * y_quantity * k_tilde**2 / (root_one_plus_epsilon_squared * squared_Q_momentum_transfer)
+            
+            # (3.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_1_zero_plus_unp to be:\n{s_1_zero_plus_unp}")
+
+            # (4): Return the coefficient:
+            return s_1_zero_plus_unp
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_1_zero_plus_unp for Interference Term:\n> {ERROR}")
+            return 0.   
+        
+    @tf.function
+    def calculate_s_1_zero_plus_unpolarized_V(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the quantity (1 + epsilon^2)^{2}:
+            one_plus_epsilon_squared_squared = (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**2
+
+            # (2): Calculate the quantity t/Q^{2}:
+            t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (3): Calculate a fancy, annoying quantity:
+            fancy_y_stuff = tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)
+
+            # (4): Calculate the bracket term:
+            bracket_term = tf.constant(4.0, dtype = tf.float32) * (tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) * t_over_Q_squared * (tf.constant(1.0, dtype = tf.float32) + x_Bjorken * t_over_Q_squared) + epsilon**2 * (tf.constant(1.0, dtype = tf.float32) + t_over_Q_squared)**2
+
+            # (5): Calculate the prefactor:
+            prefactor = tf.constant(4.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32) * fancy_y_stuff) * lepton_helicity * lepton_energy_fraction_y * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * x_Bjorken * t_over_Q_squared / one_plus_epsilon_squared_squared
+
+            # (6): Calculate the coefficient
+            s_1_zero_plus_unp_V = prefactor * bracket_term
+            
+            # (6.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_1_zero_plus_unp_V to be:\n{s_1_zero_plus_unp_V}")
+
+            # (7): Return the coefficient:
+            return s_1_zero_plus_unp_V
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_1_zero_plus_unp_V for Interference Term:\n> {ERROR}")
+            return 0.
+    
+    @tf.function
+    def calculate_s_1_zero_plus_unpolarized_A(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        shorthand_k: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the quantity (1 + epsilon^2)^{2}:
+            one_plus_epsilon_squared_squared = (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**2
+
+            # (2): Calculate a fancy, annoying quantity:
+            fancy_y_stuff = tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32))
+
+            # (3): Calculate the prefactor:
+            prefactor = -tf.constant(8.0, dtype = tf.float32) * tf.sqrt(2.) * lepton_helicity * lepton_energy_fraction_y * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * (tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) / one_plus_epsilon_squared_squared
+
+            # (4): Calculate the coefficient
+            s_1_zero_plus_unp_A = prefactor * fancy_y_stuff * squared_hadronic_momentum_transfer_t * shorthand_k**2 / squared_Q_momentum_transfer
+            
+            # (4.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_1_zero_plus_unp_A to be:\n{s_1_zero_plus_unp_A}")
+
+            # (5): Return the coefficient:
+            return s_1_zero_plus_unp_A
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_1_zero_plus_unp_A for Interference Term:\n> {ERROR}")
+            return 0.
+        
+    @tf.function
+    def calculate_s_2_zero_plus_unpolarized(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        shorthand_k: float,
+        verbose: bool = False) -> float:
+        """
+        """
+
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the recurrent quantity epsilon^2/2:
+            epsilon_squared_over_2 = epsilon**2 / 2.
+
+            # (3): Calculate the annoying y quantity:
+            y_quantity = tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32))
+
+            # (4): Calculate the bracket term:
+            bracket_term = tf.constant(1.0, dtype = tf.float32) + ((tf.constant(1.0, dtype = tf.float32) + epsilon_squared_over_2 / x_Bjorken) / (tf.constant(1.0, dtype = tf.float32) + epsilon_squared_over_2)) * x_Bjorken * squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (5): Calculate the prefactor:
+            prefactor = tf.constant(8.0, dtype = tf.float32) * lepton_helicity * tf.sqrt(tf.constant(2.0, dtype = tf.float32) * y_quantity) * shorthand_k * lepton_energy_fraction_y / root_one_plus_epsilon_squared**4
+            
+            # (6): Calculate the coefficient:
+            s_2_zero_plus_unp = prefactor * (tf.constant(1.0, dtype = tf.float32) + epsilon_squared_over_2) * bracket_term
+            
+            # (6.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_2_zero_plus_unp to be:\n{s_2_zero_plus_unp}")
+
+            # (7): Return the coefficient:
+            return s_2_zero_plus_unp
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_2_zero_plus_unp for Interference Term:\n> {ERROR}")
+            return 0.
+        
+    @tf.function
+    def calculate_s_2_zero_plus_unpolarized_V(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        shorthand_k: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the recurrent quantity t/Q^{2}:
+            t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (3): Calculate the annoying y quantity:
+            y_quantity = tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)))
+
+            # (4): Calculate the prefactor:
+            prefactor = -tf.constant(8.0, dtype = tf.float32) * tf.sqrt(2.) * lepton_helicity * y_quantity * shorthand_k * lepton_energy_fraction_y * x_Bjorken * t_over_Q_squared / root_one_plus_epsilon_squared**4
+            
+            # (5): Calculate the coefficient:
+            s_2_zero_plus_unp_V = prefactor * (tf.constant(1.0, dtype = tf.float32) - (tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) * t_over_Q_squared)
+            
+            # (5.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated s_2_zero_plus_unp_V to be:\n{s_2_zero_plus_unp_V}")
+
+            # (6): Return the coefficient:
+            return s_2_zero_plus_unp_V
+
+        except Exception as ERROR:
+            print(f"> Error in calculating s_2_zero_plus_unp_V for Interference Term:\n> {ERROR}")
+            return 0.
+        
+    @tf.function
+    def calculate_s_2_zero_plus_unpolarized_A(
+        self,
+        lepton_helicity: float,
+        squared_Q_momentum_transfer: float,
+        x_Bjorken: float,
+        squared_hadronic_momentum_transfer_t: float,
+        epsilon: float,
+        lepton_energy_fraction_y: float,
+        shorthand_k: float,
+        verbose: bool = False) -> float:
+        try:
+
+            # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
+            root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
+
+            # (2): Calculate the recurrent quantity t/Q^{2}:
+            t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
+
+            # (3): Calculate 1 - x_{B}:
+            one_minus_xb = tf.constant(1.0, dtype = tf.float32) - x_Bjorken
+
+            # (4): Calculate the annoying y quantity:
+            y_quantity = tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32))
+
+            # (5): Calculate the main term:
+            main_term = tf.constant(4.0, dtype = tf.float32) * one_minus_xb + tf.constant(2.0, dtype = tf.float32) * epsilon**2 + tf.constant(4.0, dtype = tf.float32) * t_over_Q_squared * (tf.constant(4.0, dtype = tf.float32) * x_Bjorken * one_minus_xb + epsilon**2)
+            
+            # (6): Calculate part of the prefactor:
+            prefactor = -tf.constant(2.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32) * y_quantity) * lepton_helicity * shorthand_k * lepton_energy_fraction_y * t_over_Q_squared / root_one_plus_epsilon_squared**4
+            
+            # (7): Calculate the coefficient:
+            c_2_zero_plus_unp_A = prefactor * main_term
+            
+            # (7.1): If verbose, log the output:
+            if verbose:
+                print(f"> Calculated c_2_zero_plus_unp_A to be:\n{c_2_zero_plus_unp_A}")
+
+            # (8): Return the coefficient:
+            return c_2_zero_plus_unp_A
+
+        except Exception as ERROR:
+            print(f"> Error in calculating c_2_zero_plus_unp_A for Interference Term:\n> {ERROR}")
+            return 0.
 
 @register_keras_serializable()
 class BSALayer(tf.keras.layers.Layer):
