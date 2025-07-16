@@ -1,5 +1,12 @@
 """
+We provide a test that serves to numerically cross-check the results of 
+eager-execution of the CrossSectionLayer. This is important to verify if
+the TF version of the BKM10 computation checks out with earlier-computed
+numerics using the BKM10 library and script.
 """
+
+# Native Library | datetime
+import datetime
 
 # 3rd Party Library | NumPy
 import numpy as np
@@ -12,51 +19,33 @@ import tensorflow as tf
 
 from models.architecture import CrossSectionLayer
 
-# (X): Initialize three types of kinematic bins:
-kinematics_np = np.array([
-    [2.0, 0.3, -0.2, 10.6, 30.0],
-    [1.5, 0.2, -0.1, 11.0, 45.0],
-    [3.0, 0.4, -0.25, 10.0, 60.0]
-], dtype = np.float32)
+SETTING_VERBOSE = True
+SETTING_DEBUG = True
 
-# (X): Initialize three types of CFF settings --- remember
-# | what each slot stands for!
-cffs_np = np.array([
-    [1.0, 0.1, 0.5, 0.05, 0.2, 0.01, 0.3, 0.02],
-    [0.9, 0.2, 0.6, 0.06, 0.25, 0.015, 0.35, 0.03],
-    [1.1, 0.15, 0.55, 0.04, 0.22, 0.012, 0.33, 0.025],
-], dtype = np.float32)
+def test_cross_section_vs_phi_plot(
+        target_polarization: float = 0.0,
+        lepton_helicity: float = 0.0,
+        ww_setting: bool = True):
+    """
+    ## Description:
+    We just create a plot that we can use for the cross-checking with the
+    extant BKM10 code and BKM10 library.
+    """
 
-# (X): Convert the arrays to tensors so TF doesn't explode:
-kinematics_tf = tf.convert_to_tensor(kinematics_np)
-cffs_tf = tf.convert_to_tensor(cffs_np)
+    if SETTING_DEBUG:
+        print(f"> Running with target polarization setting of: {target_polarization}")
 
-# (X): Instantiate the custom class for computations:
-cross_section_layer = CrossSectionLayer(
-    target_polarization = 0.0,
-    lepton_beam_polarization = 0.0,
-    using_ww = True)
+    if SETTING_DEBUG:
+        print(f"> Running with lepton beam polarization setting of: {lepton_helicity}")
 
-# (X): Prepare a tensor to insert into the layer --- involves
-# | concatenation!
-input_tensor = tf.concat([kinematics_tf, cffs_tf], axis = -1)
+    if SETTING_DEBUG:
+        print(f"> Are we computing with the WW relations on? {ww_setting}")
 
-# (X): Now just plug-and-chug:
-cross_sections = cross_section_layer(input_tensor)
-tf.print("> Computed cross sections:\n", cross_sections)
-
-# (X): Obtain the NumPy representation:
-cross_sections_np = cross_sections.numpy()
-print(f"> Computed cross section values:\n{cross_sections_np}")
-
-
-def test_cross_section_vs_phi_plot():
-
-    # (X): Obtain the TF CrossSection layer:
-    cross_section_layer = CrossSectionLayer(
-        target_polarization = 0.0,
-        lepton_beam_polarization = 0.0,
-        using_ww = True)
+    # (X): Obtain the TF CrossSection layer to prepare for eager evalation:
+    cross_section_computation = CrossSectionLayer(
+        target_polarization = target_polarization,
+        lepton_beam_polarization = lepton_helicity,
+        using_ww = ww_setting)
 
     # (X): Fix the kinematic values *in order*: [Q², x_B, t, k]:
     fixed_kinematics_values = [1.82, 0.34, -0.17, 5.75]
@@ -65,7 +54,7 @@ def test_cross_section_vs_phi_plot():
     cffs_values = [-0.897, 2.421, 2.444, 1.131, -0.541, 0.903, 2.207, 5.383]
 
     # (X): 0° to 360° in 1° steps
-    phi_values = np.arange(0, 361, 1, dtype = np.float32)
+    phi_values = np.arange(0., 361., 1., dtype = np.float32)
 
     # (X): Initialize array that will store iterated kinematics with varying angles:
     all_inputs = []
@@ -89,18 +78,66 @@ def test_cross_section_vs_phi_plot():
     all_inputs_tf = tf.convert_to_tensor(all_inputs_np, dtype = tf.float32)
 
     # (X): Pass the inputs (as tensors):
-    computed_cross_sections = cross_section_layer(all_inputs_tf).numpy().flatten()
+    computed_cross_sections = cross_section_computation(all_inputs_tf).numpy().flatten()
 
-    print(cross_sections)
+    if SETTING_VERBOSE:
+        print("> [VERBOSE]: Cross sections computed!")
+        
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Cross sections computed:\n{computed_cross_sections}")
 
-    # (X): Plot all the stuff:
-    plt.figure(figsize = (8, 5))
-    plt.plot(phi_values, computed_cross_sections, marker = ".", linestyle = "none", color = "red", alpha = 0.65)
-    plt.xlabel(r"Azimuthal Angle $\phi$ ($\deg$)")
-    plt.ylabel(r"Differential Cross Section ($nb/GeV^{4}$)")
-    plt.title(r"Cross Section vs. $\phi$ with Fixed Kinematics")
-    plt.grid(True)
-    plt.show()
+    # (X): Initialize a figure:
+    cross_section_figure = plt.figure(figsize = (8, 5))
 
-print("> Now running plots...")
+    # (X): Add an Axis object to it:
+    cross_section_axis = cross_section_figure.add_subplot(1, 1, 1)
+
+    # (X): Plot the relevant stuff:
+    cross_section_axis.plot(
+        phi_values,
+        computed_cross_sections,
+        linestyle = "--",
+        color = "black",
+        alpha = 0.98,
+        linewidth = 1.1)
+
+    # (X): Set the x-label:
+    cross_section_axis.set_xlabel(r"Azimuthal Angle $\phi$ ($\deg$)")
+
+    # (X): Set the y-label:
+    cross_section_axis.set_ylabel(r"Differential Cross Section ($nb/GeV^{4}$)")
+
+    # (X): Set the title:
+    cross_section_axis.set_title(r"Cross Section vs. $\phi$ with Fixed Kinematics")
+
+    # (X): Add a grid to the plot:
+    cross_section_axis.grid(True)
+    
+    # (X): We create a *unique* timestamp to name the image:
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+    # (X): Initializing the plot name:
+    plot_filename = f"x_sec_plot_unp_beam_unp_target_{timestamp}"
+
+    # (X): Some logic that determines the name of the file:
+    if lepton_helicity == 0.0:
+        if target_polarization != 0.0:
+            plot_filename = f"x_sec_plot_unp_beam_unp_target_{timestamp}"
+        else:
+            plot_filename = f"x_sec_plot_unp_beam_polarized_target_{timestamp}"
+    elif lepton_helicity == 1.0:
+        if target_polarization != 0.0:
+            plot_filename = f"x_sec_plot_plus_beam_unp_target_{timestamp}"
+        else:
+            plot_filename = f"x_sec_plot_plus_beam_polarized_target_{timestamp}"
+    elif lepton_helicity == -1.0:
+        if target_polarization != 0.0:
+            plot_filename = f"x_sec_plot_minus_beam_unp_target_{timestamp}"
+        else:
+            plot_filename = f"x_sec_plot_minus_beam_polarized_target_{timestamp}"
+
+    cross_section_figure.savefig(fname = plot_filename)
+
+    plt.close()
+
 test_cross_section_vs_phi_plot()

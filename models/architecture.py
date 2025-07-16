@@ -39,7 +39,10 @@ from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_5
 from statics.constants import _MASS_OF_PROTON_IN_GEV, _ELECTROMAGNETIC_FINE_STRUCTURE_CONSTANT, _ELECTRIC_FORM_FACTOR_CONSTANT, _PROTON_MAGNETIC_MOMENT
 
 SETTING_VERBOSE = True
-SETTING_DEBUG = True
+SETTING_DEBUG = False
+
+# (X): EXTREMELY CAREFUL! THIS IS TEMPORARY!
+# tf.config.run_functions_eagerly(True)
 
 @register_keras_serializable()
 class CrossSectionLayer(tf.keras.layers.Layer):
@@ -151,46 +154,46 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         epsilon = self.calculate_kinematics_epsilon(q_squared, x_bjorken)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed epsilon: {epsilon}")
+            print(f"> [DEBUG]: Computed epsilon: {epsilon[0]}")
 
         # (5): Compute "y":
         y = self.calculate_kinematics_lepton_energy_fraction_y(q_squared, k, epsilon)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed lepton_energy_fraction: {y}")
+            print(f"> [DEBUG]: Computed lepton_energy_fraction: {y[0]}")
 
         # (6): Comute skewness "xi":
         xi = self.calculate_kinematics_skewness_parameter(q_squared, x_bjorken, t)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed skewness: {xi}")
+            print(f"> [DEBUG]: Computed skewness: {xi[0]}")
 
         # (7): Calculate t_minimum
         t_min = self.calculate_kinematics_t_min(q_squared, x_bjorken, epsilon)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed t mimumum: {t_min}")
+            print(f"> [DEBUG]: Computed t mimumum: {t_min[0]}")
 
         # (8): Calculate t':
         t_prime = self.calculate_kinematics_t_prime(t, t_min)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed t prime: {t_prime}")
+            print(f"> [DEBUG]: Computed t prime: {t_prime[0]}")
 
         # (9): Calculate Ktilde:
         k_tilde = self.calculate_kinematics_k_tilde(q_squared, x_bjorken, y, t, epsilon, t_min)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed K tilde: {k_tilde}")
+            print(f"> [DEBUG]: Computed K tilde: {k_tilde[0]}")
 
         # (10): Calculate K:
         capital_k = self.calculate_kinematics_k(q_squared, y, epsilon, k_tilde)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed K: {capital_k}")
+            print(f"> [DEBUG]: Computed K: {capital_k[0]}")
 
         # (11): Calculate k.delta:
-        k_dot_delta = self.calculate_k_dot_delta(q_squared, x_bjorken, t, phi, epsilon, y, k)
+        k_dot_delta = self.calculate_k_dot_delta(q_squared, x_bjorken, t, phi, epsilon, y, capital_k)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed K.delta: {k_dot_delta}")
@@ -205,243 +208,99 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         p2 = self.calculate_lepton_propagator_p2(q_squared, t, k_dot_delta)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed propagator p1: {p2}")
+            print(f"> [DEBUG]: Computed propagator p2: {p2}")
 
         # (14): Calculate the Electric Form Factor
         fe = self.calculate_form_factor_electric(t)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed F_E: {fe}")
+            print(f"> [DEBUG]: Computed F_E: {fe[0]}")
 
         # (15): Calculate the Magnetic Form Factor
         fg = self.calculate_form_factor_magnetic(fe)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed F_G: {fg}")
+            print(f"> [DEBUG]: Computed F_G: {fg[0]}")
 
         # (16): Calculate the Pauli Form Factor, F2:
         f2 = self.calculate_form_factor_pauli_f2(t, fe, fg)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed F_2: {f2}")
+            print(f"> [DEBUG]: Computed F_2: {f2[0]}")
 
         # (17): Calculate the Dirac Form Factor, F1:
         f1 = self.calculate_form_factor_dirac_f1(fg, f2)
 
         if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed F_1: {f1}")
+            print(f"> [DEBUG]: Computed F_1: {f1[0]}")
 
         # (18): Calculate prefactor:
         prefactor = self.calculate_bkm10_cross_section_prefactor(q_squared, x_bjorken, epsilon, y)
-        
+
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed BKM10 cross-section prefactor: {prefactor}")
-
-        # (19): Calculate the Curly C:
-        curly_c_i_real, curly_c_i_imag = self.calculate_curly_C_unpolarized_interference(
-            q_squared, x_bjorken, t, f1, f2, real_H, imag_H, real_Ht, imag_Ht, real_E, imag_E)
-        
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed real part of Curly C^I: {curly_c_i_real}")
-            print(f"> [DEBUG]: Computed imaginary part of Curly C^I: {curly_c_i_imag}")
-        
-        # (20): Calculate the Curly C,V:
-        curly_c_i_v_real, curly_c_i_v_imag = self.calculate_curly_C_unpolarized_interference_V(
-            q_squared, x_bjorken, t, f1, f2, real_H, imag_H, real_E, imag_E)
-        
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed real part of Curly C^I,V: {curly_c_i_v_real}")
-            print(f"> [DEBUG]: Computed imaginary part of Curly C^I,V: {curly_c_i_v_imag}")
-        
-        # (21): Calculate the Curly C,A:
-        curly_c_i_a_real, curly_c_i_a_imag = self.calculate_curly_C_unpolarized_interference_A(
-            q_squared, x_bjorken, t, f1, f2, real_Ht, imag_Ht)
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed real part of Curly C^I,A: {curly_c_i_a_real}")
-            print(f"> [DEBUG]: Computed imaginary part of Curly C^I,A: {curly_c_i_a_imag}")
-        
-        # (22): Calculate the common factor:
-        common_factor = (tf.sqrt(tf.constant(2.0, dtype = tf.float32) / q_squared) * k_tilde / (tf.constant(2.0, dtype = tf.float32) - x_bjorken))
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed modulating factor on all Curly C^I with effective CFFs: {common_factor}")
-        
-        # (X): Calculate the Curly C with effective form factors:
-        curly_c_i_real_eff, curly_c_i_imag_eff = self.calculate_curly_C_unpolarized_interference(
-            q_squared, x_bjorken, t, f1, f2, 
-            self.compute_cff_effective(xi, real_H, self.using_ww),
-            self.compute_cff_effective(xi, imag_H, self.using_ww),
-            self.compute_cff_effective(xi, real_Ht, self.using_ww),
-            self.compute_cff_effective(xi, imag_Ht, self.using_ww),
-            self.compute_cff_effective(xi, real_E, self.using_ww),
-            self.compute_cff_effective(xi, imag_E, self.using_ww))
-        
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed first part of real part of Curly C^I with Feff: {curly_c_i_real_eff}")
-            print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I with Feff: {curly_c_i_imag_eff}")
-        
-        # (X): Multiply the common factor with the Curly C^I thanks to TensorFlow...
-        curly_c_i_real_eff = common_factor * curly_c_i_real_eff 
-        curly_c_i_imag_eff = common_factor * curly_c_i_imag_eff
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Finally computed real part of Curly C^I with Feff: {curly_c_i_real_eff}")
-            print(f"> [DEBUG]: Finally computed imaginary part of Curly C^I with Feff: {curly_c_i_imag_eff}")
-        
-        # (X): Calculate the Curly C,V with effective form factors:
-        curly_c_i_v_real_eff, curly_c_i_v_imag_eff = self.calculate_curly_C_unpolarized_interference_V(
-            q_squared, x_bjorken, t, f1, f2,
-            self.compute_cff_effective(xi, real_H, self.using_ww),
-            self.compute_cff_effective(xi, imag_H, self.using_ww),
-            self.compute_cff_effective(xi, real_E, self.using_ww),
-            self.compute_cff_effective(xi, imag_E, self.using_ww))
-        
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed first part of real part of Curly C^I,V with Feff: {curly_c_i_v_real_eff}")
-            print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I,V with Feff: {curly_c_i_v_imag_eff}")
-        
-        # (X): Multiply the common factor with the Curly C^I,V thanks to TensorFlow...
-        curly_c_i_v_real_eff = common_factor * curly_c_i_v_real_eff
-        curly_c_i_v_imag_eff = common_factor * curly_c_i_v_imag_eff
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Finally computed real part of Curly C^I,V with Feff: {curly_c_i_v_real_eff}")
-            print(f"> [DEBUG]: Finally computed imaginary part of Curly C^I,V with Feff: {curly_c_i_v_imag_eff}")
-        
-        # (X): Calculate the Curly C,A with effective form factors:
-        curly_c_i_a_real_eff, curly_c_i_a_imag_eff = self.calculate_curly_C_unpolarized_interference_A(
-            q_squared, x_bjorken, t, f1, f2,
-            self.compute_cff_effective(xi, real_Ht, self.using_ww),
-            self.compute_cff_effective(xi, imag_Ht, self.using_ww))
-        
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed first part of real part of Curly C^I,V with Feff: {curly_c_i_a_real_eff}")
-            print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I,V with Feff: {curly_c_i_a_imag_eff}")
-
-        # (X): Multiply the common factor with the Curly C^I,A thanks to TensorFlow...
-        curly_c_i_real_eff = common_factor * curly_c_i_real_eff
-        curly_c_i_a_real_eff = common_factor * curly_c_i_a_real_eff
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Finally computed real part of Curly C^I,A with Feff: {curly_c_i_real_eff}")
-            print(f"> [DEBUG]: Finally computed imaginary part of Curly C^I,A with Feff: {curly_c_i_a_real_eff}")
-
-        # (X): Compute the three C++(n = 0) unpolarized coefficients with TF:
-        c0pp_tf = self.calculate_c_0_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, k_tilde)
-        c0ppv_tf = self.calculate_c_0_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, k_tilde)
-        c0ppa_tf = self.calculate_c_0_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, k_tilde)
-
-        # (X): Compute the three C++(n = 1) unpolaried coefficients with TF:
-        c1pp_tf = self.calculate_c_1_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
-        c1ppv_tf = self.calculate_c_1_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
-        c1ppa_tf = self.calculate_c_1_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
-
-        # (X): Compute the three C++(n = 2) unpolaried coefficients with TF:
-        c2pp_tf = self.calculate_c_2_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
-        c2ppv_tf = self.calculate_c_2_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
-        c2ppa_tf = self.calculate_c_2_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
-
-        # (X): Compute the three C++(n = 3) unpolaried coefficients with TF:
-        c3pp_tf = self.calculate_c_3_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
-        c3ppv_tf = self.calculate_c_3_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
-        c3ppa_tf = self.calculate_c_3_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
-
-        # (X): Compute the three C0+(n = 0) unpolarized coefficients with TF:
-        c00p_tf = self.calculate_c_0_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
-        c00pv_tf = self.calculate_c_0_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
-        c00pa_tf = self.calculate_c_0_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, capital_k)
-
-        # (X): Compute the three C0+(n = 1) unpolaried coefficients with TF:
-        c10p_tf = self.calculate_c_1_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, t_prime)
-        c10pv_tf  = self.calculate_c_1_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, k_tilde)
-        c10pa_tf  = self.calculate_c_1_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, k_tilde)
-
-        # (X): Compute the three C0+(n = 2) unpolaried coefficients with TF:
-        c20p_tf = self.calculate_c_2_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
-        c20pv_tf = self.calculate_c_2_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
-        c20pa_tf = self.calculate_c_2_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
-
-        # (X): Compute the three C0+(n = 3) unpolaried coefficients with TF:
-        c30p_tf = tf.zeros_like(c0pp_tf)
-        c30pv_tf = tf.zeros_like(c0pp_tf)
-        c30pa_tf = tf.zeros_like(c0pp_tf)
-
-        # (X): Compute the three S++(n = 1) unpolaried coefficients with TF:
-        s1pp_tf = self.calculate_s_1_plus_plus_unpolarized(self.lepton_beam_polarization, q_squared, x_bjorken, epsilon, y, t_prime, capital_k)
-        s1ppv_tf = self.calculate_s_1_plus_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, epsilon, y, t_prime, capital_k)
-        s1ppa_tf = self.calculate_s_1_plus_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
-
-        # (X): Compute the three S++(n = 2) unpolaried coefficients with TF:
-        s2pp_tf = self.calculate_s_2_plus_plus_unpolarized(self.lepton_beam_polarization, q_squared, x_bjorken, epsilon, y, t_prime)
-        s2ppv_tf = self.calculate_s_2_plus_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y)
-        s2ppa_tf = self.calculate_s_2_plus_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, t_prime)
-
-        # (X): Compute the three S0+(n = 1) unpolaried coefficients with TF:
-        s10p_tf = self.calculate_s_1_zero_plus_unpolarized(self.lepton_beam_polarization, q_squared, epsilon, y, k_tilde)
-        s10pv_tf  = self.calculate_s_1_zero_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y)
-        s10pa_tf  = self.calculate_s_1_zero_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
-
-        # (X): Compute the three S0+(n = 2) unpolaried coefficients with TF:
-        s20p_tf = self.calculate_s_2_zero_plus_unpolarized(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
-        s20pv_tf = self.calculate_s_2_zero_plus_unpolarized_V(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
-        s20pa_tf = self.calculate_s_2_zero_plus_unpolarized_A(self.lepton_beam_polarization, q_squared, x_bjorken, t, epsilon, y, capital_k)
-
-        # (X): Sum together all the BH contributions:
-        # | This is 0 for now!
-        bh_contribution = tf.zeros_like(c0pp_tf)
-
-        # (X): Sum together all the DVCS contributions:
-        # | This is 0 for now!
-        dvcs_contribution = tf.zeros_like(c0pp_tf)
 
         # (X): Obtain the prefactor for the interference contribution:
         interference_prefactor = tf.constant(1.0, dtype = tf.float32) / (x_bjorken * y**3 * t * p1 * p2)
 
-        # (X): Obtain the c_{0} coefficient:
-        c_0 = (
-            c0pp_tf * curly_c_i_real + c0ppv_tf * curly_c_i_v_real + c0ppa_tf * curly_c_i_a_real +
-            c00p_tf * curly_c_i_real_eff + c00pv_tf * curly_c_i_v_real_eff + c00pa_tf * curly_c_i_a_real_eff)
-        
-        # (X): Obtain the c_{1} coefficient:
-        c_1 = (
-            c1pp_tf * curly_c_i_real + c1ppv_tf * curly_c_i_v_real + c1ppa_tf * curly_c_i_a_real +
-            c10p_tf * curly_c_i_real_eff + c10pv_tf * curly_c_i_v_real_eff + c10pa_tf * curly_c_i_a_real_eff)
-        
-        # (X): Obtain the c_{2} coefficient:
-        c_2 = (
-            c2pp_tf * curly_c_i_real + c2ppv_tf * curly_c_i_v_real + c2ppa_tf * curly_c_i_a_real +
-            c20p_tf * curly_c_i_real_eff + c20pv_tf * curly_c_i_v_real_eff + c20pa_tf * curly_c_i_a_real_eff)
-        
-        # (X): Obtain the c_{3} coefficient:
-        c_3 = (
-            c3pp_tf * curly_c_i_real + c3ppv_tf * curly_c_i_v_real + c3ppa_tf * curly_c_i_a_real +
-            c30p_tf * curly_c_i_real_eff + c30pv_tf * curly_c_i_v_real_eff + c30pa_tf * curly_c_i_a_real_eff)
-        
-        # (X): Obtain the s_{1} coefficient:
-        s_1 = (
-            s1pp_tf * curly_c_i_imag + s1ppv_tf * curly_c_i_v_imag + s1ppa_tf * curly_c_i_a_imag +
-            s10p_tf * curly_c_i_imag_eff + s10pv_tf * curly_c_i_v_imag_eff + s10pa_tf * curly_c_i_a_imag_eff)
-        
-        # (X): Obtain the s_{2} coefficient:
-        s_2 = (
-            s2pp_tf * curly_c_i_imag + s2ppv_tf * curly_c_i_v_imag + s2ppa_tf * curly_c_i_a_imag +
-            s20p_tf * curly_c_i_imag_eff + s20pv_tf * curly_c_i_v_imag_eff + s20pa_tf * curly_c_i_a_imag_eff)
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Computed interference contribution prefactor: {interference_prefactor}")
 
-        # (X): Sum together all the Interference contributions:
-        interference_contribution = (interference_prefactor * (
-            c_0 * tf.cos(tf.constant(0.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
-            c_1 * tf.cos(tf.constant(1.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
-            c_2 * tf.cos(tf.constant(2.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
-            c_3 * tf.cos(tf.constant(3.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) + 
-            s_1 * tf.sin(tf.constant(1.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi)) +
-            s_2 * tf.sin(tf.constant(2.0, dtype = tf.float32) * tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))
-        ))
+        if self.lepton_beam_polarization == 0.:
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Lepton beam detected to be unpolarized: {self.lepton_beam_polarization}")
+
+            contribution_plus = self.calculate_interference_contribution(
+                tf.constant(1.0, dtype = tf.float32), q_squared, x_bjorken, t, phi, f1, f2,
+                real_H, imag_H, real_E, imag_E, real_Ht, imag_Ht,
+                epsilon, y, xi, t_prime, k_tilde, capital_k)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Calculated first contribution to unpolarized cross section: {contribution_plus}")
+            
+            contribution_minus = self.calculate_interference_contribution(
+                tf.constant(-1.0, dtype = tf.float32), q_squared, x_bjorken, t, phi, f1, f2,
+                real_H, imag_H, real_E, imag_E, real_Ht, imag_Ht,
+                epsilon, y, xi, t_prime, k_tilde, capital_k)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Calculated finals contribution to unpolarized cross section: {contribution_minus}")
+            
+            # (X): Sum together all the Interference contributions:
+            interference_contribution = interference_prefactor * tf.constant(0.5, dtype = tf.float32) * (contribution_plus + contribution_minus)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Calculated interference contribution to amplitude squared: {interference_contribution}")
+
+        elif self.lepton_beam_polarization in (1.0, -1.0):
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Lepton beam detected to be polarized: {self.lepton_beam_polarization}")
+
+            # (X): Sum together all the Interference contributions:
+            interference_contribution = interference_prefactor * self.calculate_interference_contribution(
+                tf.constant(self.lepton_beam_polarization, dtype = tf.float32), q_squared, x_bjorken, t, phi, f1, f2,
+                real_H, imag_H, real_E, imag_E, real_Ht, imag_Ht,
+                epsilon, y, xi, t_prime, k_tilde, capital_k)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Calculated interference contribution to amplitude squared: {interference_contribution}")
+
+        else:
+
+            raise NotImplementedError(f"> [ERROR]: The lepton beam value you have chosen, {self.lepton_beam_polarization}, is not supported.")
+
+        # (X): Sum together all the BH contributions:
+        # | This is 0 for now!
+        bh_contribution = tf.zeros_like(prefactor)
+
+        # (X): Sum together all the DVCS contributions:
+        # | This is 0 for now!
+        dvcs_contribution = tf.zeros_like(prefactor)
 
         # (X): Compute the cross-section:
-        cross_section = self.convert_to_nb_over_gev4(prefactor * (
-            bh_contribution + dvcs_contribution + interference_contribution
-        ))
+        cross_section = self.convert_to_nb_over_gev4(prefactor * (bh_contribution + dvcs_contribution + interference_contribution))
 
         # (X): A first pass of computing the cross section:
         # cross_section = real_H**2 + imag_H**2 + tf.constant(0.5, dtype = tf.float32) * tf.cos(phi) * real_E + 0.1 * q_ssquared
@@ -455,6 +314,384 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         # cross_section = (prefactor * c0pp_tf * tf.cos(0. * phi)) * real_H**2 + imag_H**2 + tf.constant(0.5, dtype = tf.fdloat32) * tf.cos(phi) * real_E + 0.1 * q_squared
 
         return cross_section
+    
+    @tf.function
+    def calculate_interference_contribution(
+        self,
+        lepton_helicity,
+        q_squared,
+        x_bjorken,
+        t,
+        phi,
+        f1,
+        f2,
+        real_H,
+        imag_H,
+        real_Ht,
+        imag_Ht,
+        real_E,
+        imag_E,
+        epsilon,
+        y,
+        xi,
+        t_prime,
+        k_tilde,
+        capital_k):
+        
+        if self.target_polarization == 0.:
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Target is unpolarized: {self.target_polarization}")
+
+            # (19): Calculate the Curly C:
+            curly_c_i_real, curly_c_i_imag = self.calculate_curly_C_unpolarized_interference(
+                q_squared, x_bjorken, t, f1, f2, real_H, imag_H, real_Ht, imag_Ht, real_E, imag_E)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed real part of Curly C^I: {curly_c_i_real[0]}")
+                print(f"> [DEBUG]: Computed imaginary part of Curly C^I: {curly_c_i_imag[0]}")
+            
+            # (20): Calculate the Curly C,V:
+            curly_c_i_v_real, curly_c_i_v_imag = self.calculate_curly_C_unpolarized_interference_V(
+                q_squared, x_bjorken, t, f1, f2, real_H, imag_H, real_E, imag_E)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed real part of Curly C^I,V: {curly_c_i_v_real[0]}")
+                print(f"> [DEBUG]: Computed imaginary part of Curly C^I,V: {curly_c_i_v_imag[0]}")
+            
+            # (21): Calculate the Curly C,A:
+            curly_c_i_a_real, curly_c_i_a_imag = self.calculate_curly_C_unpolarized_interference_A(
+                q_squared, x_bjorken, t, f1, f2, real_Ht, imag_Ht)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed real part of Curly C^I,A: {curly_c_i_a_real[0]}")
+                print(f"> [DEBUG]: Computed imaginary part of Curly C^I,A: {curly_c_i_a_imag[0]}")
+            
+            # (22): Calculate the common factor:
+            common_factor = (tf.sqrt(tf.constant(2.0, dtype = tf.float32) / q_squared) * k_tilde / (tf.constant(2.0, dtype = tf.float32) - x_bjorken))
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed modulating factor on all Curly C^I with effective CFFs: {common_factor}")
+            
+            # (X): Calculate the Curly C with effective form factors:
+            curly_c_i_real_eff, curly_c_i_imag_eff = self.calculate_curly_C_unpolarized_interference(
+                q_squared, x_bjorken, t, f1, f2,
+                self.compute_cff_effective(xi, real_H, self.using_ww),
+                self.compute_cff_effective(xi, imag_H, self.using_ww),
+                self.compute_cff_effective(xi, real_Ht, self.using_ww),
+                self.compute_cff_effective(xi, imag_Ht, self.using_ww),
+                self.compute_cff_effective(xi, real_E, self.using_ww),
+                self.compute_cff_effective(xi, imag_E, self.using_ww))
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed first part of real part of Curly C^I with Feff: {curly_c_i_real_eff[0]}")
+                print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I with Feff: {curly_c_i_imag_eff[0]}")
+            
+            # (X): Multiply the common factor with the Curly C^I thanks to TensorFlow...
+            curly_c_i_real_eff = common_factor * curly_c_i_real_eff 
+            curly_c_i_imag_eff = common_factor * curly_c_i_imag_eff
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Finally computed real part of Curly C^I with Feff: {curly_c_i_real_eff[0]}")
+                print(f"> [DEBUG]: Finally computed imaginary part of Curly C^I with Feff: {curly_c_i_imag_eff[0]}")
+            
+            # (X): Calculate the Curly C,V with effective form factors:
+            curly_c_i_v_real_eff, curly_c_i_v_imag_eff = self.calculate_curly_C_unpolarized_interference_V(
+                q_squared, x_bjorken, t, f1, f2,
+                self.compute_cff_effective(xi, real_H, self.using_ww),
+                self.compute_cff_effective(xi, imag_H, self.using_ww),
+                self.compute_cff_effective(xi, real_E, self.using_ww),
+                self.compute_cff_effective(xi, imag_E, self.using_ww))
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed first part of real part of Curly C^I,V with Feff: {curly_c_i_v_real_eff[0]}")
+                print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I,V with Feff: {curly_c_i_v_imag_eff[0]}")
+            
+            # (X): Multiply the common factor with the Curly C^I,V thanks to TensorFlow...
+            curly_c_i_v_real_eff = common_factor * curly_c_i_v_real_eff
+            curly_c_i_v_imag_eff = common_factor * curly_c_i_v_imag_eff
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Finally computed real part of Curly C^I,V with Feff: {curly_c_i_v_real_eff[0]}")
+                print(f"> [DEBUG]: Finally computed imaginary part of Curly C^I,V with Feff: {curly_c_i_v_imag_eff[0]}")
+            
+            # (X): Calculate the Curly C,A with effective form factors:
+            curly_c_i_a_real_eff, curly_c_i_a_imag_eff = self.calculate_curly_C_unpolarized_interference_A(
+                q_squared, x_bjorken, t, f1, f2,
+                self.compute_cff_effective(xi, real_Ht, self.using_ww),
+                self.compute_cff_effective(xi, imag_Ht, self.using_ww))
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed first part of real part of Curly C^I,A with Feff: {curly_c_i_a_real_eff[0]}")
+                print(f"> [DEBUG]: Computed first part of imaginary part of Curly C^I,A with Feff: {curly_c_i_a_imag_eff[0]}")
+
+            # (X): Multiply the common factor with the Curly C^I,A thanks to TensorFlow...
+            curly_c_i_real_eff = common_factor * curly_c_i_real_eff
+            curly_c_i_a_real_eff = common_factor * curly_c_i_a_real_eff
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Finally computed real part of Curly C^I,A with Feff: {curly_c_i_real_eff[0]}")
+                print(f"> [DEBUG]: Finally computed imaginary part of Curly C^I,A with Feff: {curly_c_i_a_real_eff[0]}")
+
+            # (X): Compute the three C++(n = 0) unpolarized coefficients with TF:
+            c0pp_tf = self.calculate_c_0_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C0++ (c0pp_tf): {c0pp_tf[0]}")
+
+            c0ppv_tf = self.calculate_c_0_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV0++ (c0ppv_tf): {c0ppv_tf[0]}")
+
+            c0ppa_tf = self.calculate_c_0_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA0++ (c0ppa_tf): {c0ppa_tf[0]}")
+
+            # (X): Compute the three C++(n = 1) unpolaried coefficients with TF:
+            c1pp_tf = self.calculate_c_1_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C1++ (c1pp_tf): {c1pp_tf[0]}")
+
+            c1ppv_tf = self.calculate_c_1_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV1++ (c1ppv_tf): {c1ppv_tf[0]}")
+
+            c1ppa_tf = self.calculate_c_1_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA1++ (c1ppa_tf): {c1ppa_tf[0]}")
+
+            # (X): Compute the three C++(n = 2) unpolaried coefficients with TF:
+            c2pp_tf = self.calculate_c_2_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C2++ (c2pp_tf): {c2pp_tf[0]}")
+
+            c2ppv_tf = self.calculate_c_2_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV2++ (c2ppv_tf): {c2ppv_tf[0]}")
+                
+            c2ppa_tf = self.calculate_c_2_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA2++ (c2ppa_tf): {c2ppa_tf[0]}")
+
+            # (X): Compute the three C++(n = 3) unpolaried coefficients with TF:
+            c3pp_tf = self.calculate_c_3_plus_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C3++ (c3pp_tf): {c3pp_tf[0]}")
+                
+            c3ppv_tf = self.calculate_c_3_plus_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV3++ (c3ppv_tf): {c3ppv_tf[0]}")
+
+            c3ppa_tf = self.calculate_c_3_plus_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA3++ (c3ppa_tf): {c3ppa_tf[0]}")
+
+            # (X): Compute the three C0+(n = 0) unpolarized coefficients with TF:
+            c00p_tf = self.calculate_c_0_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C0+ (c00p_tf): {c00p_tf[0]}")
+
+            c00pv_tf = self.calculate_c_0_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV00+ (c00pv_tf): {c00pv_tf[0]}")
+
+            c00pa_tf = self.calculate_c_0_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA00+ (c00pa_tf): {c00pa_tf[0]}")
+
+            # (X): Compute the three C0+(n = 1) unpolaried coefficients with TF:
+            c10p_tf = self.calculate_c_1_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, t_prime)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C1++ (c10p_tf): {c10p_tf[0]}")
+
+            c10pv_tf  = self.calculate_c_1_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV10+ (c10pv_tf): {c10pv_tf[0]}")
+
+            c10pa_tf  = self.calculate_c_1_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA10+ (c10pa_tf): {c10pa_tf[0]}")
+
+            # (X): Compute the three C0+(n = 2) unpolaried coefficients with TF:
+            c20p_tf = self.calculate_c_2_zero_plus_unpolarized(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C2++ (c20p_tf): {c20p_tf[0]}")
+
+            c20pv_tf = self.calculate_c_2_zero_plus_unpolarized_V(q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV20+ (c20pv_tf): {c20pv_tf[0]}")
+
+            c20pa_tf = self.calculate_c_2_zero_plus_unpolarized_A(q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA20+ (c20pa_tf): {c20pa_tf[0]}")
+
+            # (X): Compute the three C0+(n = 3) unpolaried coefficients with TF:
+            c30p_tf = tf.zeros_like(c0pp_tf)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized C3++ (c30p_tf): {c30p_tf[0]}")
+
+            c30pv_tf = tf.zeros_like(c0pp_tf)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CV30+ (c30pv_tf): {c30pv_tf[0]}")
+
+            c30pa_tf = tf.zeros_like(c0pp_tf)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized CA30+ (c30pa_tf): {c30pa_tf[0]}")
+
+            # (X): Compute the three S++(n = 1) unpolaried coefficients with TF:
+            s1pp_tf = self.calculate_s_1_plus_plus_unpolarized(lepton_helicity, q_squared, x_bjorken, epsilon, y, t_prime, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S1++ (s1pp_tf): {s1pp_tf[0]}")
+
+            s1ppv_tf = self.calculate_s_1_plus_plus_unpolarized_V(lepton_helicity, q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S1V++ (s1ppv_tf): {s1ppv_tf[0]}")
+
+            s1ppa_tf = self.calculate_s_1_plus_plus_unpolarized_A(lepton_helicity, q_squared, x_bjorken, t, epsilon, y, t_prime, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S1A++ (s1ppa_tf): {s1ppa_tf[0]}")
+
+            # (X): Compute the three S++(n = 2) unpolaried coefficients with TF:
+            s2pp_tf = self.calculate_s_2_plus_plus_unpolarized(lepton_helicity, q_squared, x_bjorken, epsilon, y, t_prime)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S2++ (s2pp_tf): {s2pp_tf[0]}")
+                
+            s2ppv_tf = self.calculate_s_2_plus_plus_unpolarized_V(lepton_helicity, q_squared, x_bjorken, t, epsilon, y)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S2V++ (s2ppv_tf): {s2ppv_tf[0]}")
+
+            s2ppa_tf = self.calculate_s_2_plus_plus_unpolarized_A(lepton_helicity, q_squared, x_bjorken, t, epsilon, y, t_prime)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized SA2++ (s2ppa_tf): {s2ppa_tf[0]}")
+
+            # (X): Compute the three S0+(n = 1) unpolaried coefficients with TF:
+            s10p_tf = self.calculate_s_1_zero_plus_unpolarized(lepton_helicity, q_squared, epsilon, y, k_tilde)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S10+ (s10p_tf): {s10p_tf[0]}")
+
+            s10pv_tf  = self.calculate_s_1_zero_plus_unpolarized_V(lepton_helicity, q_squared, x_bjorken, t, epsilon, y)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized SV10+ (s10pv_tf): {s10pv_tf[0]}")
+
+            s10pa_tf  = self.calculate_s_1_zero_plus_unpolarized_A(lepton_helicity, q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized SA10+ (s10pa_tf): {s10pa_tf[0]}")
+
+            # (X): Compute the three S0+(n = 2) unpolaried coefficients with TF:
+            s20p_tf = self.calculate_s_2_zero_plus_unpolarized(lepton_helicity, q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S20+ (s20p_tf): {s20p_tf[0]}")
+
+            s20pv_tf = self.calculate_s_2_zero_plus_unpolarized_V(lepton_helicity, q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S2V0+ (s20pv_tf): {s20pv_tf[0]}")
+
+            s20pa_tf = self.calculate_s_2_zero_plus_unpolarized_A(lepton_helicity, q_squared, x_bjorken, t, epsilon, y, capital_k)
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized S2A0+ (s20pa_tf): {s20pa_tf[0]}")
+            
+            # (X): Obtain the c_{0} coefficient:
+            c_0 = (
+                c0pp_tf * curly_c_i_real + c0ppv_tf * curly_c_i_v_real + c0ppa_tf * curly_c_i_a_real +
+                c00p_tf * curly_c_i_real_eff + c00pv_tf * curly_c_i_v_real_eff + c00pa_tf * curly_c_i_a_real_eff)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized c_0: {c_0[0]}")
+            
+            # (X): Obtain the c_{1} coefficient:
+            c_1 = (
+                c1pp_tf * curly_c_i_real + c1ppv_tf * curly_c_i_v_real + c1ppa_tf * curly_c_i_a_real +
+                c10p_tf * curly_c_i_real_eff + c10pv_tf * curly_c_i_v_real_eff + c10pa_tf * curly_c_i_a_real_eff)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized c_1: {c_1[0]}")
+            
+            # (X): Obtain the c_{2} coefficient:
+            c_2 = (
+                c2pp_tf * curly_c_i_real + c2ppv_tf * curly_c_i_v_real + c2ppa_tf * curly_c_i_a_real +
+                c20p_tf * curly_c_i_real_eff + c20pv_tf * curly_c_i_v_real_eff + c20pa_tf * curly_c_i_a_real_eff)
+            
+            # c_2 = lepton_helicity * tf.constant(-0.03259012849881058, dtype = tf.float32) * tf.ones_like(c0pp_tf)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized c_2: {c_2[0]}")
+            
+            # (X): Obtain the c_{3} coefficient:
+            c_3 = (
+                c3pp_tf * curly_c_i_real + c3ppv_tf * curly_c_i_v_real + c3ppa_tf * curly_c_i_a_real +
+                c30p_tf * curly_c_i_real_eff + c30pv_tf * curly_c_i_v_real_eff + c30pa_tf * curly_c_i_a_real_eff)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized c_3: {c_3[0]}")
+            
+            # (X): Obtain the s_{1} coefficient:
+            s_1 = (
+                s1pp_tf * curly_c_i_imag + s1ppv_tf * curly_c_i_v_imag + s1ppa_tf * curly_c_i_a_imag +
+                s10p_tf * curly_c_i_imag_eff + s10pv_tf * curly_c_i_v_imag_eff + s10pa_tf * curly_c_i_a_imag_eff)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized s_1: {s_1[0]}")
+            
+            # (X): Obtain the s_{2} coefficient:
+            s_2 = (
+                s2pp_tf * curly_c_i_imag + s2ppv_tf * curly_c_i_v_imag + s2ppa_tf * curly_c_i_a_imag +
+                s20p_tf * curly_c_i_imag_eff + s20pv_tf * curly_c_i_v_imag_eff + s20pa_tf * curly_c_i_a_imag_eff)
+            
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed unpolarized s_2: {s_2[0]}")
+
+            interference =  (
+                c_0 * tf.cos(tf.constant(0.0, dtype = tf.float32) * (tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))) +
+                c_1 * tf.cos(tf.constant(1.0, dtype = tf.float32) * (tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))) +
+                c_2 * tf.cos(tf.constant(2.0, dtype = tf.float32) * (tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))) +
+                c_3 * tf.cos(tf.constant(3.0, dtype = tf.float32) * (tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))) +
+                s_1 * tf.sin(tf.constant(1.0, dtype = tf.float32) * (tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))) +
+                s_2 * tf.sin(tf.constant(2.0, dtype = tf.float32) * (tf.constant(np.pi, dtype = tf.float32) - self.convert_degrees_to_radians(phi))))
+            
+            return interference
+        
+        else:
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Target detected to be polarized: {self.target_polarization}")
+
+            raise NotImplementedError("Not yet...")
+                
     
     @tf.function
     def convert_degrees_to_radians(self, degrees):
@@ -715,7 +952,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             # (8): The actual equation:
             k_dot_delta_result = -tf.constant(1.0, dtype = tf.float32) * prefactor * in_parentheses
 
-            # (tf.constant(8.0, dtype = tf.float32)1): If verbose, print the output:
+            # (9): If verbose, print the output:
             if verbose:
                 tf.print(f"> Calculated k dot delta: {k_dot_delta_result}")
 
@@ -1003,7 +1240,8 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         return curly_C_unpolarized_interference_A_real, curly_C_unpolarized_interference_A_imag
     
     @tf.function
-    def calculate_c_0_plus_plus_unpolarized(self,
+    def calculate_c_0_plus_plus_unpolarized(
+        self,
         squared_Q_momentum_transfer,
         x_Bjorken,
         squared_hadronic_momentum_transfer_t,
@@ -1542,8 +1780,8 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             # (1): Calculate the main term:
             main_term = squared_hadronic_momentum_transfer_t * t_prime * (x_Bjorken * (tf.constant(1.0, dtype = tf.float32) - x_Bjorken) + epsilon**2 / tf.constant(4.0, dtype = tf.float32)) / squared_Q_momentum_transfer**2
 
-            # (2): Calculate the prefactor: 
-            prefactor = tf.constant(16.0, dtype = tf.float32) * shorthand_k * (tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)) / (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**tf.constant(2.0, dtype = tf.float32)
+            # (2): Calculate the prefactor:
+            prefactor = tf.constant(16.0, dtype = tf.float32) * shorthand_k * (tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32)) / (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**2.5
             
             # (3): The entire thing:
             c_3_plus_plus_A_unp = prefactor * main_term
@@ -1572,10 +1810,10 @@ class CrossSectionLayer(tf.keras.layers.Layer):
         try:
 
             # (1): Calculate the bracket quantity:
-            bracket_quantity = epsilon**2 + squared_hadronic_momentum_transfer_t * (tf.constant(2.0, dtype = tf.float32) - 6.* x_Bjorken - epsilon**2) / (3. * squared_Q_momentum_transfer)
+            bracket_quantity = epsilon**2 + squared_hadronic_momentum_transfer_t * (tf.constant(2.0, dtype = tf.float32) - tf.constant(6.0, dtype = tf.float32) * x_Bjorken - epsilon**2) / (tf.constant(3.0, dtype = tf.float32) * squared_Q_momentum_transfer)
             
             # (2): Calculate part of the prefactor:
-            prefactor = 12. * tf.sqrt(tf.constant(2.0, dtype = tf.float32)) * shorthand_k * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (epsilon**2 * lepton_energy_fraction_y**2 / 4)) / tf.pow(tf.constant(1.0, dtype = tf.float32) + epsilon**2, tf.constant(2.0, dtype = tf.float32))
+            prefactor = tf.constant(12.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32)) * shorthand_k * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32))) / tf.pow(tf.constant(1.0, dtype = tf.float32) + epsilon**2, tf.constant(2.5, dtype = tf.float32))
             
             # (3): Calculate the coefficient:
             c_0_zero_plus_unp = prefactor * bracket_quantity
@@ -1610,7 +1848,7 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             main_part = x_Bjorken * t_over_Q_squared * (tf.constant(1.0, dtype = tf.float32) - (tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) * t_over_Q_squared)
 
             # (3): Calculate the prefactor:
-            prefactor = 24. * tf.sqrt(tf.constant(2.0, dtype = tf.float32)) * shorthand_k * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (lepton_energy_fraction_y**2 * epsilon**2 / tf.constant(4.0, dtype = tf.float32))) / (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**tf.constant(2.0, dtype = tf.float32)
+            prefactor = tf.constant(24.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32)) * shorthand_k * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (lepton_energy_fraction_y**2 * epsilon**2 / tf.constant(4.0, dtype = tf.float32))) / (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**2.5
 
             # (4): Stitch together the coefficient:
             c_0_zero_plus_V_unp = prefactor * main_part
@@ -1642,13 +1880,13 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             t_over_Q_squared = squared_hadronic_momentum_transfer_t / squared_Q_momentum_transfer
 
             # (2): Calculate the recurrent quantity 8 - 6x_{B} + 5 epsilon^{2}:
-            fancy_xb_epsilon_term = tf.constant(8.0, dtype = tf.float32) - 6. * x_Bjorken + 5. * epsilon**2
+            fancy_xb_epsilon_term = tf.constant(8.0, dtype = tf.float32) - tf.constant(6.0, dtype = tf.float32) * x_Bjorken + tf.constant(5.0, dtype = tf.float32) * epsilon**2
 
             # (3): Compute the bracketed term:
-            brackets_term = tf.constant(1.0, dtype = tf.float32) - t_over_Q_squared * (tf.constant(2.0, dtype = tf.float32) - 12. * x_Bjorken * (tf.constant(1.0, dtype = tf.float32) - x_Bjorken) - epsilon**2) / fancy_xb_epsilon_term
+            brackets_term = tf.constant(1.0, dtype = tf.float32) - t_over_Q_squared * (tf.constant(2.0, dtype = tf.float32) - tf.constant(12.0, dtype = tf.float32) * x_Bjorken * (tf.constant(1.0, dtype = tf.float32) - x_Bjorken) - epsilon**2) / fancy_xb_epsilon_term
 
             # (4): Calculate the prefactor:
-            prefactor = tf.constant(4.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32)) * shorthand_k * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (lepton_energy_fraction_y**2 * epsilon**2 / tf.constant(4.0, dtype = tf.float32))) / tf.pow(tf.constant(1.0, dtype = tf.float32) + epsilon**2, tf.constant(2.0, dtype = tf.float32))
+            prefactor = tf.constant(4.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32)) * shorthand_k * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) * tf.sqrt(tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (lepton_energy_fraction_y**2 * epsilon**2 / tf.constant(4.0, dtype = tf.float32))) / tf.pow(tf.constant(1.0, dtype = tf.float32) + epsilon**2, tf.constant(2.5, dtype = tf.float32))
 
             # (5): Stitch together the coefficient:
             c_0_zero_plus_A_unp = prefactor * t_over_Q_squared * fancy_xb_epsilon_term * brackets_term
@@ -1733,10 +1971,10 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             y_quantity = tf.constant(1.0, dtype = tf.float32) - lepton_energy_fraction_y - (epsilon**2 * lepton_energy_fraction_y**2 / tf.constant(4.0, dtype = tf.float32))
 
             # (3): Calculate the major part:
-            major_part = (2 - lepton_energy_fraction_y)**2 * k_tilde**2 / squared_Q_momentum_transfer + (tf.constant(1.0, dtype = tf.float32) - (tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) * t_over_Q_squared)**2 * y_quantity
+            major_part = (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y)**2 * k_tilde**2 / squared_Q_momentum_transfer + (tf.constant(1.0, dtype = tf.float32) - (tf.constant(1.0, dtype = tf.float32) - tf.constant(2.0, dtype = tf.float32) * x_Bjorken) * t_over_Q_squared)**2 * y_quantity
 
             # (4): Calculate the prefactor:
-            prefactor = tf.constant(16.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32) * y_quantity) * x_Bjorken * t_over_Q_squared / (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**tf.constant(2.0, dtype = tf.float32)
+            prefactor = tf.constant(16.0, dtype = tf.float32) * tf.sqrt(tf.constant(2.0, dtype = tf.float32) * y_quantity) * x_Bjorken * t_over_Q_squared / (tf.constant(1.0, dtype = tf.float32) + epsilon**2)**2.5
 
             # (5): Stitch together the coefficient:
             c_1_zero_plus_V_unp = prefactor * major_part
@@ -1939,11 +2177,11 @@ class CrossSectionLayer(tf.keras.layers.Layer):
             # (1): Calculate the recurrent quantity sqrt(1 + epsilon^2):
             root_one_plus_epsilon_squared = tf.sqrt(tf.constant(1.0, dtype = tf.float32) + epsilon**2)
 
-            # (2): Calculate the quantity t'/Q^{2}:
+            # (2): Calculate the quantity t'/Q^{2}: 
             tPrime_over_Q_squared = t_prime / squared_Q_momentum_transfer
 
             # (3): Calculate the bracket term:
-            bracket_term = tf.constant(1.0, dtype = tf.float32) + ((tf.constant(1.0, dtype = tf.float32) - x_Bjorken + 0.5 * (root_one_plus_epsilon_squared - 1.)) / root_one_plus_epsilon_squared**2) * tPrime_over_Q_squared
+            bracket_term = tf.constant(1.0, dtype = tf.float32) + ((tf.constant(1.0, dtype = tf.float32) - x_Bjorken + tf.constant(0.5, dtype = tf.float32) * (root_one_plus_epsilon_squared - tf.constant(1.0, dtype = tf.float32))) / root_one_plus_epsilon_squared**2) * tPrime_over_Q_squared
             
             # (4): Calculate the prefactor:
             prefactor = tf.constant(8.0, dtype = tf.float32) * lepton_helicity * shorthand_k * lepton_energy_fraction_y * (tf.constant(2.0, dtype = tf.float32) - lepton_energy_fraction_y) / root_one_plus_epsilon_squared**2
@@ -2492,8 +2730,7 @@ class SimultaneousFitModel(tf.keras.Model):
             zip(
                 computed_gradients,
                 self.trainable_variables
-            )
-        )
+                ))
 
         if SETTING_DEBUG:
             print("> [DEBUG]: Gradients applied with optimizer!")
@@ -2503,6 +2740,7 @@ def build_simultaneous_model():
     ## Description:
     We initialize a DNN model used to predict the eight CFFs:
     """
+
     # (1): Initialize the Network with Uniform Random Sampling: [-0.1, -0.1]:
     initializer = tf.keras.initializers.RandomUniform(
         minval = -0.1,
@@ -2543,9 +2781,6 @@ def build_simultaneous_model():
         kernel_initializer = initializer,
         name = "cff_output_layer")(x)
     
-    # (4): Combine the kinematics as a single list:
-    # kinematics_and_cffs = Concatenate(axis = 1)([input_kinematics, output_cffs])
-
     # (X): Concatenate the two:
     full_input = Concatenate(axis = -1)([input_kinematics, output_cffs])
 

@@ -18,6 +18,9 @@ import numpy as np
 # 3rd Party Library | Matplotlib:
 import matplotlib.pyplot as plt
 
+# 3rd Party Library | Matplotlib:
+import matplotlib.colors as mcolors
+
 # 3rd Party Library | Pandas:
 import pandas as pd
 
@@ -103,6 +106,9 @@ from statics.static_strings import _DIRECTORY_REPLICAS_LOSSES
 
 # static_strings > /replicas/fits
 from statics.static_strings import _DIRECTORY_REPLICAS_FITS
+
+# static_strings > /replicas/performance
+from statics.static_strings import _DIRECTORY_REPLICAS_PERFORMANCE
 
 # static_strings > .keras
 from statics.static_strings import _TF_FORMAT_KERAS
@@ -191,6 +197,230 @@ plt.rcParams['ytick.right'] = True
 
 SETTING_VERBOSE = True
 SETTING_DEBUG = True
+
+def plot_hyperplane_separations(
+        current_replica_run_directory,
+        replica_number,
+        x_training,
+        y_training,
+        dnn_model):
+    """
+    ## Description:
+    We construct a scatterplot that shows how aligned the model's predictions
+    are with the data it was trained on. (This is mostly about the cross-section.)
+    """
+
+    # (X): Evaluate the network:
+    y_predictions = dnn_model.predict(x_training).flatten()
+
+    # (X): Compute residuals:
+    residuals = np.abs(y_training - y_predictions)
+
+    # (X): Normalize residuals for colormap scaling:
+    residuals_normalized = (residuals - residuals.min()) / (residuals.max() - residuals.min() + 1e-8)
+
+    # (X): Instantiate a figure object for the scatterplot:
+    separation_figure = plt.figure(figsize = (8, 6))
+
+    # (X): Add an Axes object to the figure:
+    separation_axis = separation_figure.add_subplot(1, 1, 1)
+
+    # (X): Add the scatter plot and return it:
+    separation_scatterplot = separation_axis.scatter(
+        y_training,
+        y_predictions,
+        c = residuals_normalized,
+        cmap = "RdYlGn_r",
+        alpha = 0.7)
+    
+    # (X): Add a colorbar to the *figure*:
+    colorbar = separation_figure.colorbar(separation_scatterplot, ax = separation_axis)
+
+    # (X): Annotate the colorbar:
+    colorbar.set_label("Normalized Residual (|True − Predicted|)", fontsize = 16)
+
+    # (X): Set the labels
+    separation_axis.set_xlabel("True Cross Section", rotation = 0, fontsize = 18)
+    separation_axis.set_ylabel("Predicted Cross Section", fontsize = 18)
+    separation_axis.set_title("Model Fit: Prediction vs. Ground Truth", rotation = 0, fontsize = 20)
+
+    # (X): Add a grid:
+    separation_axis.grid(True)
+
+    # (X): Compute the path to the directory:
+    figure_savepath = f"{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_PERFORMANCE}"
+
+    # (X): Save the figure:
+    plt.savefig(f"{figure_savepath}/distribution_of_predictions_replica_{replica_number}_v1.{_FIGURE_FORMAT_PNG}")
+
+    # (X): Close the figure:
+    plt.close()
+
+def plot_cross_section_with_residuals_and_interpolation(
+        current_replica_run_directory,
+        replica_number,
+        x_training,
+        phi_values,
+        true_values,
+        dnn_model,
+        fixed_kinematics_except_phi):
+    """
+    ## Description:
+    Constructs a plot that shows the true cross-section values compared against the
+    DNN's prediction of them, and then connects the two predictions vertically with a
+    colored line, where the color of the line depends on how big the residual value and
+    if it's positive/negative (blue/red).
+
+    We also plot true vs. predicted cross sections with residual lines,
+    plus a smooth interpolated DNN prediction curve.
+    
+    ## Notes:
+    `fixed_kinematics_except_phi` should be shape (4,) matching 
+    [q_squared, x_bjorken, t, k], everything except phi.
+    """
+
+    # (X): First, we need to predict the cross-section values:
+    predicted_values = dnn_model.predict(x_training).flatten()
+    
+    # (X): Standard thing in regression: compute residuals:
+    residuals = predicted_values - true_values
+
+    # (X): Compute the biggest residual in the fit. We will
+    # | use this later to vary the intensity of a "color value" in
+    # | the histogram.
+    max_abs_residual = np.max(np.abs(residuals))
+
+    # (X): Perform normalization:
+    normalized_resiudals = plt.Normalize(-max_abs_residual, max_abs_residual)
+
+    # (X): Define a custom red/white/blue colormap:
+    custom_colormap = mcolors.LinearSegmentedColormap.from_list(
+        name = "residual_colormap",
+        colors = [
+            (0, 'blue'), (0.5, 'white'), (1, 'red')
+            ])
+
+    # (X): Set up the "residuals-only" figure:
+    residuals_figure = plt.figure(figsize = (10, 6))
+
+    # (X): Set up the interpolation figure:
+    interpolation_figure = plt.figure(figsize = (10, 6))
+
+    # (X): Add an Axis object to the residuals figure:
+    residuals_axis = residuals_figure.add_subplot(1, 1, 1)
+
+    # (X): Add an Axis object to the residuals figure:
+    interplation_axis = interpolation_figure.add_subplot(1, 1, 1)
+
+    # (X): To the residuals figure, add the true cross-section values:
+    residuals_axis.scatter(
+        x = phi_values,
+        y = true_values,
+        color = 'black',
+        label = 'True Cross Section',
+        zorder = 3,
+        s = 4)
+    
+    # (X): Now, also add the predicted values:
+    residuals_axis.scatter(
+        x = phi_values,
+        y = predicted_values,
+        color = 'red',
+        label = 'Predicted Cross Section',
+        zorder = 3,
+        s = 4)
+    
+    # (X): We add the true cross-section values to the interpolation figure, too!
+    interplation_axis.scatter(
+        x = phi_values,
+        y = true_values,
+        color = 'black',
+        label = 'True Cross Section',
+        zorder = 3,
+        s = 4)
+    
+    # (X): Add the predicted values as well to the interpolation figure!
+    interplation_axis.scatter(
+        x = phi_values,
+        y = predicted_values,
+        color = 'red',
+        label = 'Predicted Cross Section',
+        zorder = 3,
+        s = 4)
+
+    # (X): Begin iteration over cross section values and residuals:
+    for phi, true_cross_section, predicted_cross_section, residual in zip(phi_values, true_values, predicted_values, residuals):
+
+        # (X): Map from the original interval of R to the 0-1 interval of R:
+        color_value = normalized_resiudals(residual)
+
+        # (X): Now, utilize cmap's ability to assign colors:
+        color = custom_colormap(color_value)
+
+        # (X): Plot a vertical line (understand why!) to connect the predicted and true cross-sections:
+        residuals_axis.plot(
+            [phi, phi],
+            [true_cross_section, predicted_cross_section],
+            color = color,
+            linewidth = 1)
+        
+        # (X): Do the same for the interpolation figure:
+        interplation_axis.plot(
+            [phi, phi],
+            [true_cross_section, predicted_cross_section],
+            color = color,
+            linewidth = 1)
+        
+    # (X): Construct a "densely-packed" array of azimuthal phi values for interpolation:
+    phi_dense = np.linspace(0, 360, 500)
+
+    # (X): Now, attach the phi values to the rest of the kinematic values:
+    dense_inputs = np.column_stack([
+        np.tile(fixed_kinematics_except_phi, (phi_dense.shape[0], 1)),
+        phi_dense.reshape(-1, 1)
+    ]).astype(np.float32)
+
+    # (X): Run the inputs through the DNN model for predictions:
+    dnn_predictions_dense = dnn_model.predict(dense_inputs, verbose = 0).flatten()
+
+    # (X): Now actually *add* the interpolation:
+    interplation_axis.plot(
+        phi_dense,
+        dnn_predictions_dense,
+        color = "purple",
+        linewidth = 2,
+        label = "Interpolated DNN Prediction")
+
+    # (X): Set the labels for the residuals plots:
+    residuals_axis.set_xlabel(r"Azimuthal Angle $\phi$ [degrees]", fontsize = 16)
+    residuals_axis.set_ylabel("Cross Section", fontsize = 16)
+    residuals_axis.set_title(f"Cross-Section Fitting Residuals for Replica {replica_number}", fontsize = 16)
+    
+    # (X): Set the labels for the interpolation plots:
+    interplation_axis.set_xlabel(r"Azimuthal Angle $\phi$ [degrees]", fontsize = 16)
+    interplation_axis.set_ylabel("Cross Section", fontsize = 16)
+    interplation_axis.set_title(f"DNN Interpolation for Replica {replica_number}", fontsize = 16)
+    
+    # (X): We want the legend for both:
+    residuals_axis.legend(shadow = True)
+    interplation_axis.legend(shadow = True)
+
+    # (X): We also want a grid for both:
+    residuals_axis.grid(True)
+    interplation_axis.grid(True)
+
+    # (X): Let's compute the path to save it:
+    figure_savepath = f"{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_PERFORMANCE}"
+    
+    # (X): Save the residuals figure:
+    residuals_figure.savefig(f"{figure_savepath}/predicted_vs_true_x_section_{replica_number}_v1.{_FIGURE_FORMAT_PNG}")
+    
+    # (X): Save the interpolation figure:
+    interpolation_figure.savefig(f"{figure_savepath}/dnn_interpolation_x_section_fit_{replica_number}_v1.{_FIGURE_FORMAT_PNG}")
+
+    # (X): Close the plots:
+    plt.close()
+
 
 def create_relevant_directories(
         data_file_name: str,
@@ -355,7 +585,7 @@ def make_predictions(current_replica_run_directory, input_data):
     mean_predictions = np.mean(all_predictions, axis = 1)
 
     # (X): TEMPORARY! Write out the names of the CFFs:
-    cff_names = ["Re[H]", "ImH", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
+    cff_names = ["Re[H]", "Im[H]", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
 
     # (X): Now, begin making the predictions:
     for index, cff_name in enumerate(cff_names):
@@ -384,7 +614,7 @@ def make_predictions(current_replica_run_directory, input_data):
             norm.pdf(burner_x_values_for_gaussian_fit, gaussian_mean, gaussian_stddev),
             color = "red",
             linestyle = "--",
-            label = fr"Gaussian Fit: $\mu={gaussian_mean:.3f}$, $\sigma={gaussian_stddev:.3f}$")
+            label = fr"Gaussian Fit: $\mu = {gaussian_mean:.3f}$, $\sigma = {gaussian_stddev:.3f}$")
         
         # (X): Set the title:
         cff_prediction_axis.set_title(rf"${cff_name}$ Distribution Across $N_{{\mathrm{{replicas}}}} = {number_of_replicas}$")
@@ -499,7 +729,7 @@ def main(
             _COLUMN_NAME_T_MOMENTUM_CHANGE,
             _COLUMN_NAME_LEPTON_MOMENTUM,
             _COLUMN_NAME_AZIMUTHAL_PHI]]
-        
+ 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Obtained kinematic settings columns --- using .head() to display:\n{raw_kinematics.head()}")
 
@@ -510,10 +740,36 @@ def main(
             print(f"> [DEBUG]: Obtained cross-section column --- using .head() to display:\n{raw_cross_section.head()}")
 
         # (X): Obtain the associated cross section error from the replica dataframe:
-        raw_cross_section_error = generated_replica_data[_COLUMN_NAME_CROSS_SECTION_ERROR]
+        # raw_cross_section_error = generated_replica_data[_COLUMN_NAME_CROSS_SECTION_ERROR]
+
+        raw_cross_section_error = this_replica_data_set[_COLUMN_NAME_CROSS_SECTION_ERROR]
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Obtained cross-section error column --- using .head() to display:\n{raw_cross_section_error.head()}")
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Example of numerical values of experimental kinematics: {raw_kinematics.iloc[0]}")
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG] Now showing min/max and big picture of the kinematic values: {raw_kinematics.describe()}")
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Example of numerical values of experimental cross-sections: {raw_cross_section.iloc[0]}")
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG] Now showing min/max and big picture of the cross-section values: {raw_cross_section.describe()}")
+
+        if SETTING_DEBUG:
+            print("> [DEBUG]: Sanity check sample rows:")
+            for i in range(5):
+                print(f"> [DEBUG]: Row {i} — Kinematics: {raw_kinematics.iloc[i].to_dict()} — Cross Section: {raw_cross_section.iloc[i]}")
+
+        # (X): Detect if there are NaN values in the cross-section:
+        assert not np.any(np.isnan(raw_cross_section.values)), "NaNs detected in cross section"
+
+        # (X): Detect if there are INFINITIES in the cross-section --- this will break
+        # | every TF thing we've ever done:
+        assert not np.any(np.isinf(raw_cross_section.values)), "Infs detected in cross section"
 
         # (X): Use sklearn's traing/validation split function to split into training and testing data:
         x_training, x_validation, y_training, y_validation = train_test_split(
@@ -521,7 +777,7 @@ def main(
             raw_cross_section,
             test_size = _DNN_TRAIN_TEST_SPLIT_PERCENTAGE,
             random_state = 42)
-        
+
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Partitioned data into train/test with split percentage of: {_DNN_TRAIN_TEST_SPLIT_PERCENTAGE}")
 
@@ -567,30 +823,45 @@ def main(
             # (X): TF verbose setting:
             verbose = _DNN_VERBOSE_SETTING)
         
-        if SETTING_DEBUG or SETTING_VERBOSE:
-            print(f"> Replica #{replica_index + 1} finished running!")
+        if SETTING_VERBOSE:
+            print(f"> [VERBOSE]: Replica #{replica_index + 1} finished running!")
 
         # (X): Compute the path that we'll store the replica:
         computed_path_of_replica_model = f"{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}/replica_{replica_number}.{_TF_FORMAT_KERAS}"
 
         if SETTING_DEBUG:
-            print(f"> Computed path to replica storage: {computed_path_of_replica_model}")
+            print(f"> [DEBYG]: Computed path to replica storage: {computed_path_of_replica_model}")
 
         # (X): Now, save the replica:
         dnn_model.save(computed_path_of_replica_model)
 
-        if SETTING_VERBOSE or SETTING_DEBUG:
-            print("> Saved replica!")
+        if SETTING_VERBOSE:
+            print("> [VERBOSE] Saved replica!")
 
-        y_pred = dnn_model.predict(x_training).flatten()
-        plt.scatter(y_training, y_pred, alpha = 0.6)
-        plt.xlabel("True Cross Section", rotation = 0, fontsize = 18)
-        plt.ylabel("Predicted Cross Section", fontsize = 18)
-        plt.title("Model Fit: Prediction vs. Ground Truth", rotation = 0, fontsize = 20)
-        plt.grid(True)
-        plt.show()
+        if SETTING_DEBUG:
+            print(f"> [VERBOSE] Saved replica to {computed_path_of_replica_model}")
 
-        # (X): Extract the 'loss' key from TF's history object. It has 
+        plot_hyperplane_separations(
+            current_replica_run_directory,
+            replica_number,
+            x_training,
+            y_training,
+            dnn_model)
+        
+        fixed_kinematics_except_phi = x_training.iloc[0][
+                [_COLUMN_NAME_Q_SQUARED, _COLUMN_NAME_X_BJORKEN, _COLUMN_NAME_T_MOMENTUM_CHANGE, _COLUMN_NAME_LEPTON_MOMENTUM]
+            ].to_numpy()
+        
+        plot_cross_section_with_residuals_and_interpolation(
+            current_replica_run_directory,
+            replica_number,
+            x_training,
+            x_training[_COLUMN_NAME_AZIMUTHAL_PHI],
+            y_training,
+            dnn_model,
+            fixed_kinematics_except_phi)
+
+        # (X): Extract the 'loss' key from TF's history object. It has
         # | loss vs. epoch data on it:
         training_loss_data = neural_network_training_history.history['loss']
 
@@ -632,11 +903,14 @@ def main(
             color = "purple",
             label = "Validation Loss")
         
+        # (X): Add a descriptive title:
+        evaluation_axis.set_title(rf"Replica ${replica_number}$ Learning Curves")
+        
         # (X): Add the x-label:
         evaluation_axis.set_xlabel('Epoch Number', rotation = 0, labelpad = 17.0, fontsize = 18)
 
         # (X): Add the y-label:
-        evaluation_axis.set_ylabel('Scalar Loss', rotation = 0, labelpad = 26.0, fontsize = 18)
+        evaluation_axis.set_ylabel('MSE', rotation = 0, labelpad = 26.0, fontsize = 18)
 
         # (X): Add the legend for clarity:
         plt.legend(fontsize = 17)
@@ -666,7 +940,7 @@ def main(
         plt.close()
 
     make_predictions(
-        current_replica_run_directory = current_replica_run_directory, 
+        current_replica_run_directory = current_replica_run_directory,
         input_data = raw_kinematics)
 
 
