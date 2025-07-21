@@ -146,6 +146,9 @@ from statics.static_strings import _DNN_VERBOSE_SETTING
 # static_strings > train/test split percentage
 from statics.static_strings import _DNN_TRAIN_TEST_SPLIT_PERCENTAGE
 
+# utilities > km15
+from utilities.km15 import compute_km15_cffs
+
 # (X): We tell rcParams to use LaTeX. Note: this will *crash* your
 # | version of the code if you do not have TeX distribution installed!
 plt.rcParams.update({
@@ -237,7 +240,7 @@ def plot_hyperplane_separations(
     colorbar = separation_figure.colorbar(separation_scatterplot, ax = separation_axis)
 
     # (X): Annotate the colorbar:
-    colorbar.set_label(r"Normalized Residual \|d^4\sigma − \hat{d^4\sigma}\|", fontsize = 16)
+    colorbar.set_label("Normalized Residual", fontsize = 16)
 
     # (X): Set the labels
     separation_axis.set_xlabel("True Cross Section", rotation = 0, fontsize = 18)
@@ -588,6 +591,15 @@ def make_predictions(current_replica_run_directory, input_data):
     # (X): TEMPORARY! Write out the names of the CFFs:
     cff_names = ["Re[H]", "Im[H]", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
 
+    # (X): Prepare to evaluate the KM15 model by extracting
+    q_squared, x_bjorken, t = (input_data[_COLUMN_NAME_Q_SQUARED], input_data[_COLUMN_NAME_X_BJORKEN], input_data[_COLUMN_NAME_T_MOMENTUM_CHANGE])
+
+    # (X): Get the KM15 values of the CFFs:
+    real_h_km15, imag_h_km15, real_e_km15, real_ht_km15, imag_ht_km15, real_et_km15 = compute_km15_cffs(q_squared.values[0], x_bjorken.values[0], t.values[0])
+
+    # (X): Package CFFs in list corresponding index-wise the the right CFF in `cff_names` above:
+    km15_cff_values = [real_h_km15, imag_h_km15, real_e_km15, 0.0, real_ht_km15, imag_ht_km15, real_et_km15, 0.0]
+
     # (X): Now, begin making the predictions:
     for index, cff_name in enumerate(cff_names):
 
@@ -616,6 +628,17 @@ def make_predictions(current_replica_run_directory, input_data):
             color = "red",
             linestyle = "--",
             label = fr"Gaussian Fit: $\mu = {gaussian_mean:.3f}$, $\sigma = {gaussian_stddev:.3f}$")
+        
+        # (X): We extract the corresponding KM15 prediction for the CFF:
+        km15_value = km15_cff_values[index]
+
+        # (X): We now plot the KM15 prediction for the given CFF:
+        cff_prediction_axis.axvline(
+            km15_value,
+            color = 'green',
+            linestyle = '-',
+            linewidth = 2,
+            label = f"KM15: {km15_value:.3f}")
         
         # (X): Set the title:
         cff_prediction_axis.set_title(rf"${cff_name}$ Distribution Across $N_{{\mathrm{{replicas}}}} = {number_of_replicas}$")
@@ -776,8 +799,8 @@ def main(
         x_training, x_validation, y_training, y_validation = train_test_split(
             raw_kinematics,
             raw_cross_section,
-            test_size = _DNN_TRAIN_TEST_SPLIT_PERCENTAGE,
-            random_state = 42)
+            test_size = _DNN_TRAIN_TEST_SPLIT_PERCENTAGE,)
+            # random_state = 42)
 
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Partitioned data into train/test with split percentage of: {_DNN_TRAIN_TEST_SPLIT_PERCENTAGE}")

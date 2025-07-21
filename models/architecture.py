@@ -2744,10 +2744,10 @@ def build_simultaneous_model():
     We initialize a DNN model used to predict the eight CFFs:
     """
 
-    # (1): Initialize the Network with Uniform Random Sampling: [-0.1, -0.1]:
+    # (1): Initialize the Network with Uniform Random Sampling: [-1.0, 1.0]:
     initializer = tf.keras.initializers.RandomUniform(
-        minval = -0.1,
-        maxval = 0.1,
+        minval = -0.23,
+        maxval = 0.23,
         seed = None)
     
     # (X): Define the input to the DNN:
