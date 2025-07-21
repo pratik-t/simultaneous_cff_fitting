@@ -237,7 +237,7 @@ def plot_hyperplane_separations(
     colorbar = separation_figure.colorbar(separation_scatterplot, ax = separation_axis)
 
     # (X): Annotate the colorbar:
-    colorbar.set_label("Normalized Residual (|True − Predicted|)", fontsize = 16)
+    colorbar.set_label(r"Normalized Residual \|d^4\sigma − \hat{d^4\sigma}\|", fontsize = 16)
 
     # (X): Set the labels
     separation_axis.set_xlabel("True Cross Section", rotation = 0, fontsize = 18)
@@ -251,10 +251,10 @@ def plot_hyperplane_separations(
     figure_savepath = f"{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_PERFORMANCE}"
 
     # (X): Save the figure:
-    plt.savefig(f"{figure_savepath}/distribution_of_predictions_replica_{replica_number}_v1.{_FIGURE_FORMAT_PNG}")
+    separation_figure.savefig(f"{figure_savepath}/distribution_of_predictions_replica_{replica_number}_v1.{_FIGURE_FORMAT_PNG}")
 
     # (X): Close the figure:
-    plt.close()
+    plt.close(separation_figure)
 
 def plot_cross_section_with_residuals_and_interpolation(
         current_replica_run_directory,
@@ -419,7 +419,8 @@ def plot_cross_section_with_residuals_and_interpolation(
     interpolation_figure.savefig(f"{figure_savepath}/dnn_interpolation_x_section_fit_{replica_number}_v1.{_FIGURE_FORMAT_PNG}")
 
     # (X): Close the plots:
-    plt.close()
+    plt.close(interpolation_figure)
+    plt.close(residuals_figure)
 
 
 def create_relevant_directories(
@@ -937,7 +938,7 @@ def main(
             format = _FIGURE_FORMAT_PNG)
         
         # (X): Closing figures:
-        plt.close()
+        plt.close(evaluation_figure)
 
     make_predictions(
         current_replica_run_directory = current_replica_run_directory,

@@ -22,6 +22,9 @@ from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.layers import Dense
 
 # 3rd Party Library | TensorFlow:
+from tensorflow.keras.layers import Lambda
+
+# 3rd Party Library | TensorFlow:
 from tensorflow.keras.models import Model
 
 # 3rd Party Library | TensorFlow:
@@ -2749,6 +2752,9 @@ def build_simultaneous_model():
     
     # (X): Define the input to the DNN:
     input_kinematics = Input(shape = (5, ), name = "input_layer")
+
+    # (X): Slice Q², xB, t (first 3 components) to be fed into the neural network
+    input_cff_features = Lambda(lambda x: x[:, :3], name = "kinematics_input_split")(input_kinematics)
 
     # (X): Pass the inputs through a densely-connected hidden layer:
     x = Dense(
