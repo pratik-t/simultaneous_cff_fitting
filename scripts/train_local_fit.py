@@ -24,8 +24,11 @@ import matplotlib.colors as mcolors
 # 3rd Party Library | Pandas:
 import pandas as pd
 
-# 3rd Party Library | Pandas:
+# 3rd Party Library | TensorFlow:
 import tensorflow as tf
+
+# 3rd Party Library | Keras:
+import keras
 
 # 3rd Party Library | sklearn:
 from sklearn.model_selection import train_test_split
@@ -201,6 +204,31 @@ plt.rcParams['ytick.right'] = True
 SETTING_VERBOSE = True
 SETTING_DEBUG = True
 
+def extract_kinematics(input_data):
+    """
+    ## Description:
+    We need to extract the kinematics for the purpose of plotting.
+    """
+    _DECIMAL_ROUNDING_PARAMETER = 3
+
+    q_squared = round(
+        number = np.mean(input_data[_COLUMN_NAME_Q_SQUARED]),
+        ndigits = _DECIMAL_ROUNDING_PARAMETER)
+    
+    x_bjorken = round(
+        number = np.mean(input_data[_COLUMN_NAME_X_BJORKEN]),
+        ndigits = _DECIMAL_ROUNDING_PARAMETER)
+    
+    t  = round(
+        number = np.mean(input_data[_COLUMN_NAME_T_MOMENTUM_CHANGE]),
+        ndigits = _DECIMAL_ROUNDING_PARAMETER)
+    
+    k  = round(
+        number = np.mean(input_data[_COLUMN_NAME_LEPTON_MOMENTUM]),
+        ndigits = _DECIMAL_ROUNDING_PARAMETER)
+    
+    return q_squared, x_bjorken, t, k
+
 def plot_hyperplane_separations(
         current_replica_run_directory,
         replica_number,
@@ -284,6 +312,9 @@ def plot_cross_section_with_residuals_and_interpolation(
 
     # (X): First, we need to predict the cross-section values:
     predicted_values = dnn_model.predict(x_training).flatten()
+
+    # (X): Obtain the kinematic settings:
+    q_squared_value, x_bjorken_value, t_value, k_value = extract_kinematics(x_training)
     
     # (X): Standard thing in regression: compute residuals:
     residuals = predicted_values - true_values
@@ -393,16 +424,19 @@ def plot_cross_section_with_residuals_and_interpolation(
         color = "purple",
         linewidth = 2,
         label = "Interpolated DNN Prediction")
+    
+    # (X): Compute the title of the residuals plot:
+    kinematic_settings_string = rf"$Q^2 = {q_squared_value:.2f}\ \mathrm{{GeV}}^2,\ x_{{\mathrm{{B}}}} = {x_bjorken_value:.3f},\ -t = {t_value:.3f}\ \mathrm{{GeV}}^2$"
 
     # (X): Set the labels for the residuals plots:
     residuals_axis.set_xlabel(r"Azimuthal Angle $\phi$ [degrees]", fontsize = 16)
     residuals_axis.set_ylabel("Cross Section", fontsize = 16)
-    residuals_axis.set_title(f"Cross-Section Fitting Residuals for Replica {replica_number}", fontsize = 16)
+    residuals_axis.set_title(f"Cross-Section Fitting Residuals for Replica {replica_number} with {kinematic_settings_string}", fontsize = 16)
     
     # (X): Set the labels for the interpolation plots:
     interplation_axis.set_xlabel(r"Azimuthal Angle $\phi$ [degrees]", fontsize = 16)
     interplation_axis.set_ylabel("Cross Section", fontsize = 16)
-    interplation_axis.set_title(f"DNN Interpolation for Replica {replica_number}", fontsize = 16)
+    interplation_axis.set_title(f"DNN Interpolation for Replica {replica_number} with {kinematic_settings_string}", fontsize = 16)
     
     # (X): We want the legend for both:
     residuals_axis.legend(shadow = True)
@@ -553,6 +587,12 @@ def make_predictions(current_replica_run_directory, input_data):
     if SETTING_VERBOSE or SETTING_DEBUG:
         print(f"> Found {number_of_replicas} replicas.")
 
+    # (X): Obtain the kinematic settings:
+    q_squared_value, x_bjorken_value, t_value, k_value = extract_kinematics(input_data)
+
+    # (X): Compute the title of the residuals plot:
+    kinematic_settings_string = rf"$Q^2 = {q_squared_value:.2f}\ \mathrm{{GeV}}^2,\ x_{{\mathrm{{B}}}} = {x_bjorken_value:.3f},\ -t = {t_value:.3f}\ \mathrm{{GeV}}^2$"
+
     # (X): Initalize a list to append CFF predictions:
     all_predictions = []
 
@@ -561,6 +601,8 @@ def make_predictions(current_replica_run_directory, input_data):
         iterable = replica_paths,
         desc = "Evaluating replicas",
         colour = "green"):
+
+        keras.config.enable_unsafe_deserialization()
 
         # (X.Y): Obtain *the* TF replica model:
         replica_model = tf.keras.models.load_model(
@@ -616,7 +658,13 @@ def make_predictions(current_replica_run_directory, input_data):
         cff_prediction_axis = cff_prediction_figure.add_subplot(1, 1, 1)
 
         # (X): Add a histogram object to the axis:
-        cff_prediction_axis.hist(data, bins = 30, density = True, alpha = 0.6, color = 'skyblue', edgecolor = 'black')
+        cff_prediction_axis.hist(
+            data,
+            bins = 30,
+            density = True,
+            alpha = 0.6,
+            color = 'skyblue',
+            edgecolor = 'black')
 
         # (X): We need an iterable for the Gaussian fit which will be a *line* to .plot() with:
         burner_x_values_for_gaussian_fit = np.linspace(data.min(), data.max(), 200)
@@ -641,7 +689,7 @@ def make_predictions(current_replica_run_directory, input_data):
             label = f"KM15: {km15_value:.3f}")
         
         # (X): Set the title:
-        cff_prediction_axis.set_title(rf"${cff_name}$ Distribution Across $N_{{\mathrm{{replicas}}}} = {number_of_replicas}$")
+        cff_prediction_axis.set_title(rf"${cff_name}$ Distribution Across $N_{{\mathrm{{replicas}}}} = {number_of_replicas}$ at {kinematic_settings_string}")
 
         # (X): Set the x-label:
         cff_prediction_axis.set_xlabel(f"${cff_name}$ Value", rotation = 0, labelpad = 17.0, fontsize = 18)

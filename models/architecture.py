@@ -2746,8 +2746,8 @@ def build_simultaneous_model():
 
     # (1): Initialize the Network with Uniform Random Sampling: [-1.0, 1.0]:
     initializer = tf.keras.initializers.RandomUniform(
-        minval = -0.23,
-        maxval = 0.23,
+        minval = -0.14,
+        maxval = 0.14,
         seed = None)
     
     # (X): Define the input to the DNN:
@@ -2760,7 +2760,7 @@ def build_simultaneous_model():
     x = Dense(
         _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_1,
         activation = "relu",
-        kernel_initializer = initializer)(input_kinematics)
+        kernel_initializer = initializer)(input_cff_features)
 
     # (X): Pass the inputs through a densely-connected hidden layer:
     x = Dense(
