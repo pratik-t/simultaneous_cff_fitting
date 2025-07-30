@@ -1,7 +1,14 @@
 """
 This script will run the replica method with N replicas to produce
-a local fit of a given observable.
+a *single* local fit of a given observable or set of observables.
+
+## Notes:
+(1): This will only run a *single* local fit, which translates to
+fitting at a *single* kinematic setting.
 """
+
+# Native Library | gc
+import gc
 
 # Native Library | argparse
 import argparse
@@ -29,6 +36,9 @@ import tensorflow as tf
 
 # 3rd Party Library | Keras:
 import keras
+
+# 3rd Party Library | Keras
+import tensorflow.keras.backend as K
 
 # 3rd Party Library | sklearn:
 from sklearn.model_selection import train_test_split
@@ -148,9 +158,6 @@ from statics.static_strings import _DNN_VERBOSE_SETTING
 
 # static_strings > train/test split percentage
 from statics.static_strings import _DNN_TRAIN_TEST_SPLIT_PERCENTAGE
-
-# utilities > km15
-from utilities.km15 import compute_km15_cffs
 
 # (X): We tell rcParams to use LaTeX. Note: this will *crash* your
 # | version of the code if you do not have TeX distribution installed!
@@ -538,194 +545,275 @@ def create_relevant_directories(
 
     return current_run_folder
 
-def extract_cff_layer_output(model, input_data):
+def run_replica(
+        kinematics_dataframe_name,
+        replica_number,
+        job_run_directory):
     """
     ## Description:
-    Extracts the CFFs from an intermediate layer of the model.
-    Recall that in our architecture the CFFs are an intermediate
-    layer of 8 nodes that are *then* used to generate cross-
-    section and BSA data.
+    Later!
     """
-    intermediate_layer_model = tf.keras.Model(
-        inputs = model.input,
-        outputs = model.get_layer("cff_output_layer").output)
+
+    # (1.2): Propose a replica name:
+    current_replica_name = f"replica_{replica_number}"
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed replica name to be: {current_replica_name}")
+
+    # (1.3): Immediately construct the filetype for the replica:
+    model_file_name = f"{current_replica_name}.h5"
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed corresponding replica file name to be: {model_file_name}")
+
+    # (X): Rely on Pandas to correctly read the just-generated .csv file:
+    kinematics_dataframe_path = os.path.join('data', kinematics_dataframe_name)
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed path to data .csv file: {kinematics_dataframe_path}")
+
+    # (X): Use Pandas' `.read_csv()` method to generate a corresponding DF:
+    this_replica_data_set = pd.read_csv(kinematics_dataframe_path)
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Now printing the Pandas DF head using df.head():\n {this_replica_data_set.head()}")
+
+    # (X): We now compute a *given* replica's DF --- it will *not* be the same as the original DF!
+    generated_replica_data = generate_replica_data(pandas_dataframe = this_replica_data_set)
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Successfully generated replica data. Now displaying using df.head():\n {generated_replica_data.head()}")
+
+    # (X): Use an f-string to compute the name *and location* of the file!
+    computed_path_and_name_of_replica_data = f"{job_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_RAW}/pseudodata_replica_{replica_number}_data.csv"
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed path and file name of current replica data: {computed_path_and_name_of_replica_data}")
+
+    # (X): We also store the pseudodata/replica data for reproducability purposes:
+    generated_replica_data.to_csv(
+        path_or_buf = computed_path_and_name_of_replica_data,
+        index_label = None)
     
-    return intermediate_layer_model.predict(input_data)
+    if SETTING_DEBUG:
+        print("> [DEBUG]: Saved replica data!")
 
-def get_replica_model_paths(current_replica_run_path):
-    """
-    ## Description:
-    A basic function that finds where the relevant .keras
-    replica files are, sorts them, and returns the sorted
-    array. Notice that what is returned is just a *list* of
-    *paths*!
-    """
-    return sorted([
-        os.path.join(current_replica_run_path, filename)
-        for filename in os.listdir(current_replica_run_path)
-        if filename.endswith(_TF_FORMAT_KERAS)
-    ])
+    # (X): Identify the "x values" for our model:
+    raw_kinematics = generated_replica_data[[
+        _COLUMN_NAME_Q_SQUARED,
+        _COLUMN_NAME_X_BJORKEN,
+        _COLUMN_NAME_T_MOMENTUM_CHANGE,
+        _COLUMN_NAME_LEPTON_MOMENTUM,
+        _COLUMN_NAME_AZIMUTHAL_PHI]]
 
-def make_predictions(current_replica_run_directory, input_data):
-    """
-    ## Description:
-    Assuming the replica method was performed, we now make
-    predictions with the replica averages.
-    """
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Obtained kinematic settings columns --- using .head() to display:\n{raw_kinematics.head()}")
+
+    # (X): Obtain the cross section data from the replica dataframe:
+    raw_cross_section = generated_replica_data[_COLUMN_NAME_CROSS_SECTION]
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Obtained cross-section column --- using .head() to display:\n{raw_cross_section.head()}")
+
+    # (X): Obtain the associated cross section error from the replica dataframe:
+    # raw_cross_section_error = generated_replica_data[_COLUMN_NAME_CROSS_SECTION_ERROR]
+
+    raw_cross_section_error = this_replica_data_set[_COLUMN_NAME_CROSS_SECTION_ERROR]
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Obtained cross-section error column --- using .head() to display:\n{raw_cross_section_error.head()}")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Example of numerical values of experimental kinematics: {raw_kinematics.iloc[0]}")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG] Now showing min/max and big picture of the kinematic values: {raw_kinematics.describe()}")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Example of numerical values of experimental cross-sections: {raw_cross_section.iloc[0]}")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG] Now showing min/max and big picture of the cross-section values: {raw_cross_section.describe()}")
+
+    if SETTING_DEBUG:
+        print("> [DEBUG]: Sanity check sample rows:")
+        for i in range(5):
+            print(f"> [DEBUG]: Row {i} — Kinematics: {raw_kinematics.iloc[i].to_dict()} — Cross Section: {raw_cross_section.iloc[i]}")
+
+    # (X): Detect if there are NaN values in the cross-section:
+    assert not np.any(np.isnan(raw_cross_section.values)), "NaNs detected in cross section"
+
+    # (X): Detect if there are INFINITIES in the cross-section --- this will break
+    # | every TF thing we've ever done:
+    assert not np.any(np.isinf(raw_cross_section.values)), "Infs detected in cross section"
+
+    # (X): Use sklearn's traing/validation split function to split into training and testing data:
+    x_training, x_validation, y_training, y_validation = train_test_split(
+        raw_kinematics,
+        raw_cross_section,
+        test_size = _DNN_TRAIN_TEST_SPLIT_PERCENTAGE,)
+        # random_state = 42)
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Partitioned data into train/test with split percentage of: {_DNN_TRAIN_TEST_SPLIT_PERCENTAGE}")
+
+    # (X): Begin timing the replica time:
+    start_time_in_milliseconds = datetime.datetime.now().replace(microsecond = 0)
+    
+    if SETTING_DEBUG or SETTING_VERBOSE:
+        print(f"> [VERBOSE]: Replica #{replica_number} started at {start_time_in_milliseconds}...")
+
+    # (X): Initialize the model:
+    dnn_model = build_simultaneous_model()
+    
+    # (X): Here, we run the fitting procedure:
+    neural_network_training_history = dnn_model.fit(
+
+        # (X): Insert the training input-data here (independent variables):
+        x_training,
+
+        # (X): Insert the training output-data here (dependent variables):
+        y_training,
+
+        # (X): Insert a tuple of validation data according to (input, output):
+        validation_data = (x_validation, y_validation),
+
+        # (X): Hyperparameter: Epoch number:
+        epochs = _HYPERPARAMETER_NUMBER_OF_EPOCHS,
+
+        # (X): Hyperparameters: Batch size:
+        batch_size = _HYPERPARAMETER_BATCH_SIZE,
+
+        # (X): A list of TF callbacks:
+        callbacks = [
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor = 'loss',
+                factor = _HYPERPARAMETER_LR_FACTOR,
+                patience = _HYPERPARAMETER_LR_PATIENCE,
+                mode = 'auto'),
+            tf.keras.callbacks.EarlyStopping(
+                monitor = 'loss',
+                patience = _HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER)
+        ],
+
+        # (X): TF verbose setting:
+        verbose = _DNN_VERBOSE_SETTING)
+    
+    if SETTING_VERBOSE:
+        print(f"> [VERBOSE]: Replica #{replica_number} finished running!")
+
     # (X): Compute the path that we'll store the replica:
-    computed_path_of_replica_model = f"{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}"
+    computed_path_of_replica_model = f"{job_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}/replica_{replica_number}.{_TF_FORMAT_KERAS}"
 
-    # (X): Compute the path of the plots that we'll store the predictions in:
-    computed_path_to_plots = f"{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_FITS}"
+    if SETTING_DEBUG:
+        print(f"> [DEBYG]: Computed path to replica storage: {computed_path_of_replica_model}")
 
-    # (X): Find a list of paths to the current replicas:
-    replica_paths = get_replica_model_paths(computed_path_of_replica_model)
+    # (X): Now, save the replica:
+    dnn_model.save(computed_path_of_replica_model)
 
-    # (X): Save this in memory so we can use it for plots later:
-    number_of_replicas = len(replica_paths)
+    if SETTING_VERBOSE:
+        print("> [VERBOSE] Saved replica!")
 
-    if SETTING_VERBOSE or SETTING_DEBUG:
-        print(f"> Found {number_of_replicas} replicas.")
+    if SETTING_DEBUG:
+        print(f"> [VERBOSE] Saved replica to {computed_path_of_replica_model}")
 
-    # (X): Obtain the kinematic settings:
-    q_squared_value, x_bjorken_value, t_value, k_value = extract_kinematics(input_data)
+    plot_hyperplane_separations(
+        job_run_directory,
+        replica_number,
+        x_training,
+        y_training,
+        dnn_model)
+    
+    fixed_kinematics_except_phi = x_training.iloc[0][
+            [_COLUMN_NAME_Q_SQUARED, _COLUMN_NAME_X_BJORKEN, _COLUMN_NAME_T_MOMENTUM_CHANGE, _COLUMN_NAME_LEPTON_MOMENTUM]
+        ].to_numpy()
+    
+    plot_cross_section_with_residuals_and_interpolation(
+        job_run_directory,
+        replica_number,
+        x_training,
+        x_training[_COLUMN_NAME_AZIMUTHAL_PHI],
+        y_training,
+        dnn_model,
+        fixed_kinematics_except_phi)
 
-    # (X): Compute the title of the residuals plot:
-    kinematic_settings_string = rf"$Q^2 = {q_squared_value:.2f}\ \mathrm{{GeV}}^2,\ x_{{\mathrm{{B}}}} = {x_bjorken_value:.3f},\ -t = {t_value:.3f}\ \mathrm{{GeV}}^2$"
+    # (X): Extract the 'loss' key from TF's history object. It has
+    # | loss vs. epoch data on it:
+    training_loss_data = neural_network_training_history.history['loss']
 
-    # (X): Initalize a list to append CFF predictions:
-    all_predictions = []
-
-    # (X): Start iterating over every replica found in the directory:
-    for replica in tqdm(
-        iterable = replica_paths,
-        desc = "Evaluating replicas",
-        colour = "green"):
-
-        keras.config.enable_unsafe_deserialization()
-
-        # (X.Y): Obtain *the* TF replica model:
-        replica_model = tf.keras.models.load_model(
-            replica,
-            compile = False,
-            custom_objects = {
-                "CrossSectionLayer": CrossSectionLayer,
-                "BSALayer": BSALayer
-            })
-
-        # (X.Y): Run through the models makingpredictions:
-        predicted_cffs = extract_cff_layer_output(replica_model, input_data)
-
-        # (X.Y): Note the shape of `all_predictions` will be crazy:
-        all_predictions.append(predicted_cffs)
-
-    # (X):
-    all_predictions = np.array(all_predictions)
-
-    # (X): The last element in the tuple will be the number of CFFs:
-    number_of_cffs = all_predictions.shape[-1]
-
-    # (X): Compute the mean of each CFF by using .mean() along axis 1.
-    # | This is why it's important to have an idea of what the predictions
-    # | array looks like:
-    mean_predictions = np.mean(all_predictions, axis = 1)
-
-    # (X): TEMPORARY! Write out the names of the CFFs:
-    cff_names = ["Re[H]", "Im[H]", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
-
-    # (X): Prepare to evaluate the KM15 model by extracting
-    q_squared, x_bjorken, t = (input_data[_COLUMN_NAME_Q_SQUARED], input_data[_COLUMN_NAME_X_BJORKEN], input_data[_COLUMN_NAME_T_MOMENTUM_CHANGE])
-
-    # (X): Get the KM15 values of the CFFs:
-    real_h_km15, imag_h_km15, real_e_km15, real_ht_km15, imag_ht_km15, real_et_km15 = compute_km15_cffs(q_squared.values[0], x_bjorken.values[0], t.values[0])
-
-    # (X): Package CFFs in list corresponding index-wise the the right CFF in `cff_names` above:
-    km15_cff_values = [real_h_km15, imag_h_km15, real_e_km15, 0.0, real_ht_km15, imag_ht_km15, real_et_km15, 0.0]
-
-    # (X): Now, begin making the predictions:
-    for index, cff_name in enumerate(cff_names):
-
-        # (X): Query the i-th "row" of this predictions array:
-        data = mean_predictions[:, index]
-
-        # (X): Run a fit to a Gaussian function immediately:
-        gaussian_mean, gaussian_stddev = norm.fit(data)
-
-        # (X): Initialize a figure instance for plotting:
-        cff_prediction_figure = plt.figure(figsize = (10, 5.5))
+    # (X): Extract the 'val_loss' (validation loss) from the TF history object:
+    validation_loss_history_array = neural_network_training_history.history['val_loss']
         
-        # (X): Add the subplot, which returns an Axes:
-        cff_prediction_axis = cff_prediction_figure.add_subplot(1, 1, 1)
+    # (X): Define a Figure object for plotting network loss:
+    evaluation_figure = plt.figure(
+        figsize = (10, 5.5))
+    
+    # (X): Add the subplot, which returns an Axes:
+    evaluation_axis = evaluation_figure.add_subplot(1, 1, 1)
+    
+    # (X): Add a simple horizonal line that shows the *initial value* of the MSEl
+    evaluation_axis.plot(
+        np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
+        np.array([np.max(training_loss_data) for number in training_loss_data]),
+        color = "red",
+        label = "Initial MSE Loss")
+    
+    # (X): Add a simple horizonal line that shows where MSE = 0:
+    evaluation_axis.plot(
+        np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
+        np.zeros(shape = _HYPERPARAMETER_NUMBER_OF_EPOCHS),
+        color = "green",
+        label = r"MSE $=0$")
+    
+    # (X): Add a line plot that shows MSE loss vs. epoch:
+    evaluation_axis.plot(
+        np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
+        training_loss_data,
+        color = "blue",
+        label = "MSE Loss")
+    
+    # (X): Add a line plot that shows the trend of validation loss vs. epoch:
+    evaluation_axis.plot(
+        np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
+        validation_loss_history_array,
+        color = "purple",
+        label = "Validation Loss")
+    
+    # (X): Add a descriptive title:
+    evaluation_axis.set_title(rf"Replica ${replica_number}$ Learning Curves")
+    
+    # (X): Add the x-label:
+    evaluation_axis.set_xlabel('Epoch Number', rotation = 0, labelpad = 17.0, fontsize = 18)
 
-        # (X): Add a histogram object to the axis:
-        cff_prediction_axis.hist(
-            data,
-            bins = 30,
-            density = True,
-            alpha = 0.6,
-            color = 'skyblue',
-            edgecolor = 'black')
+    # (X): Add the y-label:
+    evaluation_axis.set_ylabel('MSE', rotation = 0, labelpad = 26.0, fontsize = 18)
 
-        # (X): We need an iterable for the Gaussian fit which will be a *line* to .plot() with:
-        burner_x_values_for_gaussian_fit = np.linspace(data.min(), data.max(), 200)
+    # (X): Add the legend for clarity:
+    plt.legend(fontsize = 17)
 
-        # (X): Now, fit to a Gaussian and plot the line:
-        cff_prediction_axis.plot(
-            burner_x_values_for_gaussian_fit,
-            norm.pdf(burner_x_values_for_gaussian_fit, gaussian_mean, gaussian_stddev),
-            color = "red",
-            linestyle = "--",
-            label = fr"Gaussian Fit: $\mu = {gaussian_mean:.3f}$, $\sigma = {gaussian_stddev:.3f}$")
-        
-        # (X): We extract the corresponding KM15 prediction for the CFF:
-        km15_value = km15_cff_values[index]
+    # (X): Compute the string that will be the filename of the loss plot:
+    current_replica_loss_plot_filename = f"{job_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_LOSSES}/loss_analytics_replica_{replica_number}_v1"
 
-        # (X): We now plot the KM15 prediction for the given CFF:
-        cff_prediction_axis.axvline(
-            km15_value,
-            color = 'green',
-            linestyle = '-',
-            linewidth = 2,
-            label = f"KM15: {km15_value:.3f}")
-        
-        # (X): Set the title:
-        cff_prediction_axis.set_title(rf"${cff_name}$ Distribution Across $N_{{\mathrm{{replicas}}}} = {number_of_replicas}$ at {kinematic_settings_string}")
+    if SETTING_DEBUG or SETTING_VERBOSE:
+        print(f"> Computed replica loss plot file destination:\n> {current_replica_loss_plot_filename}")
 
-        # (X): Set the x-label:
-        cff_prediction_axis.set_xlabel(f"${cff_name}$ Value", rotation = 0, labelpad = 17.0, fontsize = 18)
-
-        # (X): Set the y-label:
-        cff_prediction_axis.set_ylabel("Density", rotation = 0, labelpad = 17.0, fontsize = 18)
-
-        # (X): Add a legend:
-        plt.legend()
-
-        # (X): Enforce a tight layout:
-        plt.tight_layout()
-
-        # (X): Save a version of the figure according to .eps format for Overleaf stuff:
-        cff_prediction_figure.savefig(
-            fname = f"{computed_path_to_plots}/{cff_name}_histogram.{_FIGURE_FORMAT_EPS}",
-            format = _FIGURE_FORMAT_EPS)
-        
-        # (X): Save an immediately-visualizable figure with vector graphics:
-        cff_prediction_figure.savefig(
-            fname = f"{computed_path_to_plots}/{cff_name}_histogram.{_FIGURE_FORMAT_SVG}",
-            format = _FIGURE_FORMAT_SVG)
-        
-        # (X): Save an immediately-visualizable figure with vector graphics:
-        cff_prediction_figure.savefig(
-            fname = f"{computed_path_to_plots}/{cff_name}_histogram.{_FIGURE_FORMAT_PNG}",
-            format = _FIGURE_FORMAT_PNG)
-        
-        # (X): Close the figure to avoid memory explosions and etc.:
-        plt.close()
-
-        if SETTING_VERBOSE or SETTING_DEBUG:
-            print(f"> [VERBOSE]: Saved: {computed_path_to_plots}")
-
-    if SETTING_VERBOSE or SETTING_DEBUG:
-        print("> [VERBOSE]: All histograms generated!")
+    # (X): Save a version of the figure according to .eps format for Overleaf stuff:
+    evaluation_figure.savefig(
+        fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_EPS}",
+        format = _FIGURE_FORMAT_EPS)
+    
+    # (X): Save an immediately-visualizable figure with vector graphics:
+    evaluation_figure.savefig(
+        fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_SVG}",
+        format = _FIGURE_FORMAT_SVG)
+    
+    # (X): Save an immediately-visualizable figure with vector graphics:
+    evaluation_figure.savefig(
+        fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_PNG}",
+        format = _FIGURE_FORMAT_PNG)
+    
+    # (X): Closing figures:
+    plt.close(evaluation_figure)
 
 def main(
         kinematics_dataframe_name: str,
@@ -741,6 +829,18 @@ def main(
         data_file_name = kinematics_dataframe_name,
         number_of_replicas = number_of_replicas)
     
+    # (X): Determine devices' GPUs:
+    gpus = tf.config.list_physical_devices('GPU')
+
+    # (X): If there exist available GPUs...
+    if gpus:
+
+        # (X): ... begin iteration over each one and...
+        for gpu in gpus:
+
+            # (X): ... enforce growth of memory rather than using all of it:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    
     # (1): Begin iteratng over the replicas:
     for replica_index in range(number_of_replicas):
 
@@ -750,270 +850,14 @@ def main(
         if SETTING_DEBUG:
             print(f"> [DEBUG]: Computed replica number to be: {replica_number}")
 
-        # (1.2): Propose a replica name:
-        current_replica_name = f"replica_{replica_number}"
+        run_replica(
+            kinematics_dataframe_name = kinematics_dataframe_name,
+            replica_number = replica_number,
+            job_run_directory = current_replica_run_directory)
 
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed replica name to be: {current_replica_name}")
-
-        # (1.3): Immediately construct the filetype for the replica:
-        model_file_name = f"{current_replica_name}.h5"
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed corresponding replica file name to be: {model_file_name}")
-
-        # (X): Rely on Pandas to correctly read the just-generated .csv file:
-        kinematics_dataframe_path = os.path.join('data', kinematics_dataframe_name)
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed path to data .csv file: {kinematics_dataframe_path}")
-
-        # (X): Use Pandas' `.read_csv()` method to generate a corresponding DF:
-        this_replica_data_set = pd.read_csv(kinematics_dataframe_path)
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Now printing the Pandas DF head using df.head():\n {this_replica_data_set.head()}")
-
-        # (X): We now compute a *given* replica's DF --- it will *not* be the same as the original DF!
-        generated_replica_data = generate_replica_data(pandas_dataframe = this_replica_data_set)
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Successfully generated replica data. Now displaying using df.head():\n {generated_replica_data.head()}")
-
-        # (X): Use an f-string to compute the name *and location* of the file!
-        computed_path_and_name_of_replica_data = f"{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_RAW}/pseudodata_replica_{replica_number}_data.csv"
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Computed path and file name of current replica data: {computed_path_and_name_of_replica_data}")
-
-        # (X): We also store the pseudodata/replica data for reproducability purposes:
-        generated_replica_data.to_csv(
-            path_or_buf = computed_path_and_name_of_replica_data,
-            index_label = None)
-        
-        if SETTING_DEBUG:
-            print("> [DEBUG]: Saved replica data!")
-
-        # (X): Identify the "x values" for our model:
-        raw_kinematics = generated_replica_data[[
-            _COLUMN_NAME_Q_SQUARED,
-            _COLUMN_NAME_X_BJORKEN,
-            _COLUMN_NAME_T_MOMENTUM_CHANGE,
-            _COLUMN_NAME_LEPTON_MOMENTUM,
-            _COLUMN_NAME_AZIMUTHAL_PHI]]
- 
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Obtained kinematic settings columns --- using .head() to display:\n{raw_kinematics.head()}")
-
-        # (X): Obtain the cross section data from the replica dataframe:
-        raw_cross_section = generated_replica_data[_COLUMN_NAME_CROSS_SECTION]
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Obtained cross-section column --- using .head() to display:\n{raw_cross_section.head()}")
-
-        # (X): Obtain the associated cross section error from the replica dataframe:
-        # raw_cross_section_error = generated_replica_data[_COLUMN_NAME_CROSS_SECTION_ERROR]
-
-        raw_cross_section_error = this_replica_data_set[_COLUMN_NAME_CROSS_SECTION_ERROR]
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Obtained cross-section error column --- using .head() to display:\n{raw_cross_section_error.head()}")
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Example of numerical values of experimental kinematics: {raw_kinematics.iloc[0]}")
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG] Now showing min/max and big picture of the kinematic values: {raw_kinematics.describe()}")
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Example of numerical values of experimental cross-sections: {raw_cross_section.iloc[0]}")
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG] Now showing min/max and big picture of the cross-section values: {raw_cross_section.describe()}")
-
-        if SETTING_DEBUG:
-            print("> [DEBUG]: Sanity check sample rows:")
-            for i in range(5):
-                print(f"> [DEBUG]: Row {i} — Kinematics: {raw_kinematics.iloc[i].to_dict()} — Cross Section: {raw_cross_section.iloc[i]}")
-
-        # (X): Detect if there are NaN values in the cross-section:
-        assert not np.any(np.isnan(raw_cross_section.values)), "NaNs detected in cross section"
-
-        # (X): Detect if there are INFINITIES in the cross-section --- this will break
-        # | every TF thing we've ever done:
-        assert not np.any(np.isinf(raw_cross_section.values)), "Infs detected in cross section"
-
-        # (X): Use sklearn's traing/validation split function to split into training and testing data:
-        x_training, x_validation, y_training, y_validation = train_test_split(
-            raw_kinematics,
-            raw_cross_section,
-            test_size = _DNN_TRAIN_TEST_SPLIT_PERCENTAGE,)
-            # random_state = 42)
-
-        if SETTING_DEBUG:
-            print(f"> [DEBUG]: Partitioned data into train/test with split percentage of: {_DNN_TRAIN_TEST_SPLIT_PERCENTAGE}")
-
-        # (X): Begin timing the replica time:
-        start_time_in_milliseconds = datetime.datetime.now().replace(microsecond = 0)
-        
-        if SETTING_DEBUG or SETTING_VERBOSE:
-            print(f"> [VERBOSE]: Replica #{replica_index + 1} started at {start_time_in_milliseconds}...")
-
-        # (X): Initialize the model:
-        dnn_model = build_simultaneous_model()
-        
-        # (X): Here, we run the fitting procedure:
-        neural_network_training_history = dnn_model.fit(
-
-            # (X): Insert the training input-data here (independent variables):
-            x_training,
-
-            # (X): Insert the training output-data here (dependent variables):
-            y_training,
-
-            # (X): Insert a tuple of validation data according to (input, output):
-            validation_data = (x_validation, y_validation),
-
-            # (X): Hyperparameter: Epoch number:
-            epochs = _HYPERPARAMETER_NUMBER_OF_EPOCHS,
-
-            # (X): Hyperparameters: Batch size:
-            batch_size = _HYPERPARAMETER_BATCH_SIZE,
-
-            # (X): A list of TF callbacks:
-            callbacks = [
-                tf.keras.callbacks.ReduceLROnPlateau(
-                    monitor = 'loss',
-                    factor = _HYPERPARAMETER_LR_FACTOR,
-                    patience = _HYPERPARAMETER_LR_PATIENCE,
-                    mode = 'auto'),
-                tf.keras.callbacks.EarlyStopping(
-                    monitor = 'loss',
-                    patience = _HYPERPARAMETER_EARLYSTOP_PATIENCE_INTEGER)
-            ],
-
-            # (X): TF verbose setting:
-            verbose = _DNN_VERBOSE_SETTING)
-        
-        if SETTING_VERBOSE:
-            print(f"> [VERBOSE]: Replica #{replica_index + 1} finished running!")
-
-        # (X): Compute the path that we'll store the replica:
-        computed_path_of_replica_model = f"{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}/replica_{replica_number}.{_TF_FORMAT_KERAS}"
-
-        if SETTING_DEBUG:
-            print(f"> [DEBYG]: Computed path to replica storage: {computed_path_of_replica_model}")
-
-        # (X): Now, save the replica:
-        dnn_model.save(computed_path_of_replica_model)
-
-        if SETTING_VERBOSE:
-            print("> [VERBOSE] Saved replica!")
-
-        if SETTING_DEBUG:
-            print(f"> [VERBOSE] Saved replica to {computed_path_of_replica_model}")
-
-        plot_hyperplane_separations(
-            current_replica_run_directory,
-            replica_number,
-            x_training,
-            y_training,
-            dnn_model)
-        
-        fixed_kinematics_except_phi = x_training.iloc[0][
-                [_COLUMN_NAME_Q_SQUARED, _COLUMN_NAME_X_BJORKEN, _COLUMN_NAME_T_MOMENTUM_CHANGE, _COLUMN_NAME_LEPTON_MOMENTUM]
-            ].to_numpy()
-        
-        plot_cross_section_with_residuals_and_interpolation(
-            current_replica_run_directory,
-            replica_number,
-            x_training,
-            x_training[_COLUMN_NAME_AZIMUTHAL_PHI],
-            y_training,
-            dnn_model,
-            fixed_kinematics_except_phi)
-
-        # (X): Extract the 'loss' key from TF's history object. It has
-        # | loss vs. epoch data on it:
-        training_loss_data = neural_network_training_history.history['loss']
-
-        # (X): Extract the 'val_loss' (validation loss) from the TF history object:
-        validation_loss_history_array = neural_network_training_history.history['val_loss']
-            
-        # (X): Define a Figure object for plotting network loss:
-        evaluation_figure = plt.figure(
-            figsize = (10, 5.5))
-        
-        # (X): Add the subplot, which returns an Axes:
-        evaluation_axis = evaluation_figure.add_subplot(1, 1, 1)
-        
-        # (X): Add a simple horizonal line that shows the *initial value* of the MSEl
-        evaluation_axis.plot(
-            np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
-            np.array([np.max(training_loss_data) for number in training_loss_data]),
-            color = "red",
-            label = "Initial MSE Loss")
-        
-        # (X): Add a simple horizonal line that shows where MSE = 0:
-        evaluation_axis.plot(
-            np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
-            np.zeros(shape = _HYPERPARAMETER_NUMBER_OF_EPOCHS),
-            color = "green",
-            label = r"MSE $=0$")
-        
-        # (X): Add a line plot that shows MSE loss vs. epoch:
-        evaluation_axis.plot(
-            np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
-            training_loss_data,
-            color = "blue",
-            label = "MSE Loss")
-        
-        # (X): Add a line plot that shows the trend of validation loss vs. epoch:
-        evaluation_axis.plot(
-            np.arange(0, _HYPERPARAMETER_NUMBER_OF_EPOCHS, 1),
-            validation_loss_history_array,
-            color = "purple",
-            label = "Validation Loss")
-        
-        # (X): Add a descriptive title:
-        evaluation_axis.set_title(rf"Replica ${replica_number}$ Learning Curves")
-        
-        # (X): Add the x-label:
-        evaluation_axis.set_xlabel('Epoch Number', rotation = 0, labelpad = 17.0, fontsize = 18)
-
-        # (X): Add the y-label:
-        evaluation_axis.set_ylabel('MSE', rotation = 0, labelpad = 26.0, fontsize = 18)
-
-        # (X): Add the legend for clarity:
-        plt.legend(fontsize = 17)
-
-        # (X): Compute the string that will be the filename of the loss plot:
-        current_replica_loss_plot_filename = f"{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_LOSSES}/loss_analytics_replica_{replica_number}_v1"
-
-        if SETTING_DEBUG or SETTING_VERBOSE:
-            print(f"> Computed replica loss plot file destination:\n> {current_replica_loss_plot_filename}")
-
-        # (X): Save a version of the figure according to .eps format for Overleaf stuff:
-        evaluation_figure.savefig(
-            fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_EPS}",
-            format = _FIGURE_FORMAT_EPS)
-        
-        # (X): Save an immediately-visualizable figure with vector graphics:
-        evaluation_figure.savefig(
-            fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_SVG}",
-            format = _FIGURE_FORMAT_SVG)
-        
-        # (X): Save an immediately-visualizable figure with vector graphics:
-        evaluation_figure.savefig(
-            fname = f"{current_replica_loss_plot_filename}.{_FIGURE_FORMAT_PNG}",
-            format = _FIGURE_FORMAT_PNG)
-        
-        # (X): Closing figures:
-        plt.close(evaluation_figure)
-
-    make_predictions(
-        current_replica_run_directory = current_replica_run_directory,
-        input_data = raw_kinematics)
+    # make_predictions(
+    #     current_replica_run_directory = current_replica_run_directory,
+    #     input_data = raw_kinematics)
 
 
 if __name__ == "__main__":

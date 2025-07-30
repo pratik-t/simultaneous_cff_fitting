@@ -168,3 +168,8 @@ cython_debug/
 
 # TensorFlow model file:
 *.keras
+
+# Slurm jobs:
+.slurm
+
+*-env

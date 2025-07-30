@@ -48,6 +48,9 @@ _COLUMN_NAME_X_BJORKEN = "x_b"
 # (14): "Generalized" column name for azimuthal phi angle:
 _COLUMN_NAME_AZIMUTHAL_PHI = "phi"
 
+# (X): Required subdirectories | analysis:
+_DIRECTORY_ANALYSIS = 'analysis'
+
 # (X): Required subdirectories | analysis > data:
 _DIRECTORY_DATA = 'data'
 
@@ -138,6 +141,9 @@ _FIGURE_FORMAT_SVG = "svg"
 
 # (X):
 _FIGURE_FORMAT_PNG = "png"
+
+# (X):
+_FILE_FORMAT_CSV = "csv"
 
 # TEMPORARY!
 _COLUMN_NAME_CROSS_SECTION = "sigma"

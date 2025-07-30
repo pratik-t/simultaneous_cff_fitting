@@ -13,3 +13,9 @@ This script will generate the training, validation, and testing data that a *giv
 
 3. train_local_fit.py
 Run `train_local_fit.py` to run the entire Replica Method on a *given observable*. We will later figure out how to incorporate *all* the observables.
+
+4. generate_pseudodata.py
+This script generates a `.csv` file that contains the values of the 8 CFFs we want to extract based on a given GPD model.
+
+5. local_predictions.py
+*Once you have run `train_local_fit.py`, you can run this script to generate predictions for the CFFs.

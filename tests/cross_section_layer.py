@@ -96,10 +96,10 @@ def test_cross_section_vs_phi_plot(
     cross_section_axis.plot(
         phi_values,
         computed_cross_sections,
-        linestyle = "--",
-        color = "black",
-        alpha = 0.98,
-        linewidth = 1.1)
+        linestyle = "none",
+        color = "red",
+        alpha = 0.65,
+        marker = ".")
 
     # (X): Set the x-label:
     cross_section_axis.set_xlabel(r"Azimuthal Angle $\phi$ ($\deg$)")
@@ -123,21 +123,26 @@ def test_cross_section_vs_phi_plot(
     if lepton_helicity == 0.0:
         if target_polarization != 0.0:
             plot_filename = f"x_sec_plot_unp_beam_unp_target_{timestamp}"
+
         else:
             plot_filename = f"x_sec_plot_unp_beam_polarized_target_{timestamp}"
+
     elif lepton_helicity == 1.0:
         if target_polarization != 0.0:
             plot_filename = f"x_sec_plot_plus_beam_unp_target_{timestamp}"
+
         else:
             plot_filename = f"x_sec_plot_plus_beam_polarized_target_{timestamp}"
+
     elif lepton_helicity == -1.0:
         if target_polarization != 0.0:
             plot_filename = f"x_sec_plot_minus_beam_unp_target_{timestamp}"
+
         else:
             plot_filename = f"x_sec_plot_minus_beam_polarized_target_{timestamp}"
 
     cross_section_figure.savefig(fname = plot_filename)
 
-    plt.close()
+    plt.close(cross_section_figure)
 
 test_cross_section_vs_phi_plot()

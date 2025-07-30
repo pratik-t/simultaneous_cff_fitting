@@ -30,21 +30,34 @@ from tensorflow.keras.models import Model
 # 3rd Party Library | TensorFlow:
 from tensorflow.keras.utils import register_keras_serializable
 
-from models.loss_functions import simultaneous_fit_loss
+from models.loss_functions import SimultaneousFitLoss
 
 from statics.static_strings import _HYPERPARAMETER_LEARNING_RATE
+
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_1
+
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_2
+
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_3
+
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_4
+
 from statics.static_strings import _HYPERPARAMETER_NUMBER_OF_NEURONS_LAYER_5
 
-from statics.constants import _MASS_OF_PROTON_IN_GEV, _ELECTROMAGNETIC_FINE_STRUCTURE_CONSTANT, _ELECTRIC_FORM_FACTOR_CONSTANT, _PROTON_MAGNETIC_MOMENT
+from statics.constants import _MASS_OF_PROTON_IN_GEV
+
+from statics.constants import _ELECTROMAGNETIC_FINE_STRUCTURE_CONSTANT
+
+from statics.constants import _ELECTRIC_FORM_FACTOR_CONSTANT
+
+from statics.constants import _PROTON_MAGNETIC_MOMENT
 
 SETTING_VERBOSE = True
 SETTING_DEBUG = False
 
 # (X): EXTREMELY CAREFUL! THIS IS TEMPORARY!
+# | Notes on this: ONLY USE WHEN YOU ARE TESTING THIS
+# | LAYER AND NOT IN TRAINING MODE (GRAPH MODE)!.
 # tf.config.run_functions_eagerly(True)
 
 @register_keras_serializable()
