@@ -1,5 +1,8 @@
 """
+## Description:
 Once we have performed a local fit, we can make predicitons of the CFFs.
+
+## Notes:
 """
 
 # Native Library | argparse
@@ -10,6 +13,9 @@ import gc
 
 # Native Library | os
 import os
+
+# Native Library | re
+import re
 
 # 3rd Party Library | NumPy:
 import numpy as np
@@ -198,7 +204,7 @@ def get_replica_model_paths(current_replica_run_path):
     ])
 
 def make_predictions(
-        current_replica_run_directory,
+        current_run_directory,
         input_data,
         verbose: bool = True):
     """
@@ -206,11 +212,12 @@ def make_predictions(
     Assuming the replica method was performed, we now make
     predictions with the replica averages.
     """
+    
     # (X): Compute the path that we'll store the replica:
-    computed_path_of_replica_model = f"{_DIRECTORY_ANALYSIS}/{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}"
+    computed_path_of_replica_model = f"{current_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}"
 
     # (X): Compute the path of the plots that we'll store the predictions in:
-    computed_path_to_plots = f"{_DIRECTORY_ANALYSIS}/{current_replica_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_FITS}"
+    computed_path_to_plots = f"{current_run_directory}/{_DIRECTORY_REPLICAS}/{_DIRECTORY_REPLICAS_FITS}"
 
     # (X): Find a list of paths to the current replicas:
     replica_paths = get_replica_model_paths(computed_path_of_replica_model)
@@ -218,11 +225,14 @@ def make_predictions(
     # (X): Save this in memory so we can use it for plots later:
     number_of_replicas = len(replica_paths)
 
-    if SETTING_VERBOSE or SETTING_DEBUG:
-        print(f"> Found {number_of_replicas} replicas.")
+    if SETTING_VERBOSE:
+        print(f"> [VERBOSE]: Found {number_of_replicas} replicas.")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Found {number_of_replicas} replicas.")
 
     # (X): Use an f-string to compute the name *and location* of the file!
-    computed_path_and_name_of_replica_data = f"{_DIRECTORY_ANALYSIS}/{current_replica_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_RAW}/pseudodata_replica_1_data.csv"
+    computed_path_and_name_of_replica_data = f"{current_run_directory}/{_DIRECTORY_DATA}/{_DIRECTORY_DATA_RAW}/pseudodata_replica_1_data.csv"
 
     input_data = pd.read_csv(computed_path_and_name_of_replica_data)[[
         _COLUMN_NAME_Q_SQUARED,
@@ -235,7 +245,7 @@ def make_predictions(
     q_squared_value, x_bjorken_value, t_value, k_value = extract_kinematics(input_data)
 
     # (X): Compute the title of the residuals plot:
-    kinematic_settings_string = rf"$Q^2 = {q_squared_value:.2f}\ \mathrm{{GeV}}^2,\ x_{{\mathrm{{B}}}} = {x_bjorken_value:.3f},\ -t = {t_value:.3f}\ \mathrm{{GeV}}^2$"
+    kinematic_settings_string = rf"$Q^2 = {q_squared_value:.2f}\ \mathrm{{GeV}}^2,\ x_{{\mathrm{{B}}}} = {x_bjorken_value:.3f},\ t = {t_value:.3f}\ \mathrm{{GeV}}^2$"
 
     # (X): Initalize a list to append CFF predictions:
     all_predictions = []
@@ -278,7 +288,7 @@ def make_predictions(
     # (X): TEMPORARY! Write out the names of the CFFs:
     cff_names = ["Re[H]", "Im[H]", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
 
-    # (X): Prepare to evaluate the KM15 model by extracting
+    # (X): Prepare to evaluate the KM15 model by extracting the kinematics:
     q_squared, x_bjorken, t = (input_data[_COLUMN_NAME_Q_SQUARED], input_data[_COLUMN_NAME_X_BJORKEN], input_data[_COLUMN_NAME_T_MOMENTUM_CHANGE])
 
     # (X): Get the KM15 values of the CFFs:
@@ -286,6 +296,9 @@ def make_predictions(
 
     # (X): Package CFFs in list corresponding index-wise the the right CFF in `cff_names` above:
     km15_cff_values = [real_h_km15, imag_h_km15, real_e_km15, 0.0, real_ht_km15, imag_ht_km15, real_et_km15, 0.0]
+
+    # (X): Initialize an array containing the 8 CFF predictions *for returning from this function*!:
+    cff_mean_predictions = []
 
     # (X): Now, begin making the predictions:
     for index, cff_name in enumerate(cff_names):
@@ -321,6 +334,9 @@ def make_predictions(
             color = "red",
             linestyle = "--",
             label = fr"Gaussian Fit: $\mu = {gaussian_mean:.3f}$, $\sigma = {gaussian_stddev:.3f}$")
+        
+        # (X): 
+        cff_mean_predictions.append(gaussian_mean)
         
         # (X): We extract the corresponding KM15 prediction for the CFF:
         km15_value = km15_cff_values[index]
@@ -381,6 +397,153 @@ def make_predictions(
     # (X): Use garbage collector to clear the memory:
     gc.collect()
 
+    return k_value, q_squared_value, x_bjorken_value, t_value, cff_mean_predictions
+
+def plot_cff_surfaces(cff_predictions_dataframe: pd.DataFrame):
+    """
+    ## Description:
+
+    """
+    x_bjorken = cff_predictions_dataframe[_COLUMN_NAME_X_BJORKEN]
+    q_squared = cff_predictions_dataframe[_COLUMN_NAME_Q_SQUARED]
+    t = cff_predictions_dataframe[_COLUMN_NAME_T_MOMENTUM_CHANGE]
+    minus_t = -t
+
+    fixed_q_squared = q_squared.median()
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed median value of Q^2: {fixed_q_squared}")
+        
+    fixed_x_bjorken = x_bjorken.median()
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed median value of xB: {fixed_x_bjorken}")
+
+    fixed_t = t.median()
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Computed median value of t: {fixed_t}")
+
+    # (X): TEMPORARY! Write out the names of the CFFs:
+    cff_names = ["Re[H]", "Im[H]", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
+
+    # (X): Now, begin making the predictions:
+    for index, cff_name in enumerate(cff_names):
+
+        restricted_q_squared = cff_predictions_dataframe[np.isclose(q_squared, fixed_q_squared, rtol = 0.1)]
+        restricted_x_bjorken = cff_predictions_dataframe[np.isclose(x_bjorken, fixed_x_bjorken, rtol = 0.1)]
+        restricted_t = cff_predictions_dataframe[np.isclose(t, fixed_t, rtol = 0.1)]
+
+        # (X): Set up the CFF vs. -t & x_{B} figure:
+        t_versus_x_bjorken_figure = plt.figure(figsize = (10, 6))
+
+        # (X): Set up the CFF vs. Q^{2} & x_{B} figure:
+        q_squared_versus_x_bjorken_figure = plt.figure(figsize = (10, 6))
+
+        # (X): Set up the CFF vs. -t & Q^{2} figure:
+        t_versus_q_squared_figure = plt.figure(figsize = (10, 6))
+
+        # (X): Add an Axis object to the -t vs. x_{B} figure:
+        t_versus_x_bjorken_axis = t_versus_x_bjorken_figure.add_subplot(1, 1, 1, projection = "3d")
+
+        # (X): Add an Axis object to the Q^{2} vs. x_{B} figure:
+        q_squared_versus_x_bjorken_axis = q_squared_versus_x_bjorken_figure.add_subplot(1, 1, 1, projection = "3d")
+
+        # (X): Add an Axis object to the -t vs. Q^{2} figure:
+        t_versus_q_squared_axis = t_versus_q_squared_figure.add_subplot(1, 1, 1, projection = "3d")
+
+        t_versus_x_bjorken_axis.scatter(
+            restricted_q_squared[_COLUMN_NAME_X_BJORKEN],
+            -restricted_q_squared[_COLUMN_NAME_T_MOMENTUM_CHANGE],
+            restricted_q_squared[cff_name],
+            alpha = 0.9,
+            s = 10.4)
+        t_versus_x_bjorken_axis.set_xlabel(r"$x_B$")
+        t_versus_x_bjorken_axis.set_ylabel(r"$-t$")
+        t_versus_x_bjorken_axis.set_title(rf"$-t$ vs. $x_B$ at $Q^2 = {fixed_q_squared:.2f}$")
+
+        q_squared_versus_x_bjorken_axis.scatter(
+            restricted_t[_COLUMN_NAME_X_BJORKEN],
+            -restricted_t[_COLUMN_NAME_Q_SQUARED],
+            restricted_t[cff_name],
+            alpha = 0.9,
+            s = 10.4)
+        q_squared_versus_x_bjorken_axis.set_xlabel(r"$x_B$")
+        q_squared_versus_x_bjorken_axis.set_ylabel(r"$Q^2$")
+        q_squared_versus_x_bjorken_axis.set_title(rf"$Q^2$ vs. $x_B$ at $-t = {fixed_t:.2f}$")
+
+        t_versus_q_squared_axis.scatter(
+            restricted_x_bjorken[_COLUMN_NAME_Q_SQUARED],
+            -restricted_x_bjorken[_COLUMN_NAME_T_MOMENTUM_CHANGE],
+            restricted_x_bjorken[cff_name],
+            alpha = 0.9,
+            s = 10.4)
+        t_versus_q_squared_axis.set_xlabel(r"$Q^2$")
+        t_versus_q_squared_axis.set_ylabel(r"$-t$")
+        t_versus_q_squared_axis.set_title(rf"$-t$ vs. $Q^2$ at $x_B = {fixed_x_bjorken:.2f}$")
+        
+        t_versus_x_bjorken_figure.savefig(fname = f"{cff_name}_t_vs_xb_v1.png", dpi = 300)
+        q_squared_versus_x_bjorken_figure.savefig(fname = f"{cff_name}_q_vs_xb_v1.png", dpi = 300)
+        t_versus_q_squared_figure.savefig(fname = f"{cff_name}_t_vs_q_v1.png", dpi = 300)
+
+        plt.close(t_versus_x_bjorken_figure)
+        plt.close(q_squared_versus_x_bjorken_figure)
+        plt.close(t_versus_q_squared_figure)
+
+def local_predictions(
+        current_replica_run_directory: str,
+        input_data: str,
+        verbose: bool = False):
+    """
+    Later!
+    """
+
+    # (X): Find the *name* of the replica run:
+    computed_path_of_replica_run = f"{_DIRECTORY_ANALYSIS}/{current_replica_run_directory}/"
+
+    # (X): Find how many kinematic bins were tested:
+    kinematic_setting_directories = [
+        directory for directory in os.listdir(computed_path_of_replica_run)
+        if os.path.isdir(os.path.join(computed_path_of_replica_run, directory))
+        ]
+
+    results = []
+
+    for kinematic_setting_index, kinematic_setting_name in enumerate(kinematic_setting_directories):
+
+        if SETTING_VERBOSE:
+            print(f"> [VERBOSE]: Now making predictions for kinematic set #{kinematic_setting_index + 1}")
+
+        path_to_kinematic_set = f"{computed_path_of_replica_run}/{kinematic_setting_name}"
+
+        # (X): Perform the prediction process:
+        k_value, q_squared_value, x_bjorken_value, t_value, cff_mean_predictions = make_predictions(
+            current_run_directory = path_to_kinematic_set,
+            input_data = False)
+        
+        # (X): Constuct the row corresponding to the fixed kienamtic settings:
+        # | Note the ordered list of CFFs is:  ["Re[H]", "Im[H]", "Re[E]", "Im[E]", "Re[Ht]", "Im[Ht]", "Re[Et]", "Im[Et]"]
+        row = {
+            'bin': kinematic_setting_index,
+            'k': k_value,
+            'q_squared': q_squared_value,
+            'x_b': x_bjorken_value,
+            't': t_value,
+            'Re[H]': cff_mean_predictions[0],
+            'Im[H]': cff_mean_predictions[1],
+            'Re[E]': cff_mean_predictions[2],
+            'Im[E]': cff_mean_predictions[3],
+            'Re[Ht]': cff_mean_predictions[4],
+            'Im[Ht]': cff_mean_predictions[5],
+            'Re[Et]': cff_mean_predictions[6],
+            'Im[Et]': cff_mean_predictions[7],
+        }
+        results.append(row)
+
+    df = pd.DataFrame(results)
+    df.to_csv("all_cff_predictions.csv", index=False)
+
+
 if __name__ == "__main__":
 
     # (1): Create an instance of the ArgumentParser
@@ -412,7 +575,11 @@ if __name__ == "__main__":
     
     arguments = parser.parse_args()
 
-    make_predictions(
+    local_predictions(
         current_replica_run_directory = arguments.replica_file,
         input_data = arguments.datafile,
         verbose = arguments.verbose)
+    
+    df = pd.read_csv("all_cff_predictions.csv")
+    
+    plot_cff_surfaces(df)

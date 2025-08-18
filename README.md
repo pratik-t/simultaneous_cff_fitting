@@ -7,6 +7,7 @@ We feature all the code that was used in order to perform what is called a "simu
 ## StackExchange
 
 1. https://academia.stackexchange.com/a/172780 -> for how to make a citation for code on GitHub
+2. https://stackoverflow.com/a/40596167 -> for how to actually make function docstrings
 
 ## Websites:
 

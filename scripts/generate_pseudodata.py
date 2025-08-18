@@ -68,7 +68,7 @@ X_B_RANGE = np.linspace(0.1, 0.6, 6)
 T_RANGE = np.linspace(-1.0, -0.1, 10)
 
 # (X): For all of these, we want phi to range from 0 to 360 degrees:
-_PHI_ARRAY = np.linspace(0, 2 * np.pi, 15)
+_PHI_ARRAY = np.linspace(0, 360, 15)
 
 SETTING_VERBOSE = False
 SETTING_DEBUG = False

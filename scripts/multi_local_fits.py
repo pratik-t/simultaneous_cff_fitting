@@ -54,6 +54,10 @@ from models.architecture import CrossSectionLayer, BSALayer
 # (X): Function | scripts > replica_data > generate_replica_data
 from scripts.replica_data import generate_replica_data
 
+from scripts.train_local_fit import run_replica
+
+from scripts.train_local_fit import create_subdirectories, create_run_directory
+
 # static_strings > argparse > description:
 from statics.static_strings import _ARGPARSE_DESCRIPTION
 
@@ -216,8 +220,8 @@ def plot_kinematic_distributions(kinematic_dataframe: pd.DataFrame):
     # if not all(col in kinematic_dataframe.columns for col in [[_COLUMN_NAME_X_BJORKEN, _COLUMN_NAME_Q_SQUARED, _COLUMN_NAME_T_MOMENTUM_CHANGE]]):
     #     raise ValueError("DataFrame must include columns: 'x_B', 'Q²', and 't'.")
 
-    x_B = kinematic_dataframe[_COLUMN_NAME_X_BJORKEN]
-    Q2 = kinematic_dataframe[_COLUMN_NAME_Q_SQUARED]
+    x_bjorken = kinematic_dataframe[_COLUMN_NAME_X_BJORKEN]
+    q_squared = kinematic_dataframe[_COLUMN_NAME_Q_SQUARED]
     t = kinematic_dataframe[_COLUMN_NAME_T_MOMENTUM_CHANGE]
     minus_t = -t
 
@@ -245,22 +249,22 @@ def plot_kinematic_distributions(kinematic_dataframe: pd.DataFrame):
     # (X): Add an Axis object to the kinematic domain figure:
     input_space_axis = input_space_figure.add_subplot(1, 1, 1, projection = "3d")
 
-    t_versus_x_bjorken_axis.scatter(x_B, minus_t, alpha = 0.1, s = 10.4)
+    t_versus_x_bjorken_axis.scatter(x_bjorken, minus_t, alpha = 0.8, s = 10.4)
     t_versus_x_bjorken_axis.set_xlabel(r"$x_B$")
     t_versus_x_bjorken_axis.set_ylabel(r"$-t$")
     t_versus_x_bjorken_axis.set_title(r"$-t$ vs. $x_B$")
 
-    q_squared_versus_x_bjorken_axis.scatter(x_B, Q2, alpha = 0.1, s = 10.4)
+    q_squared_versus_x_bjorken_axis.scatter(x_bjorken, q_squared, alpha = 0.8, s = 10.4)
     q_squared_versus_x_bjorken_axis.set_xlabel(r"$x_B$")
     q_squared_versus_x_bjorken_axis.set_ylabel(r"$Q^2$")
     q_squared_versus_x_bjorken_axis.set_title(r"$Q^2$ vs. $x_B$")
 
-    t_versus_q_squared_axis.scatter(Q2, minus_t, alpha = 0.1, s = 10.4)
+    t_versus_q_squared_axis.scatter(q_squared, minus_t, alpha = 0.8, s = 10.4)
     t_versus_q_squared_axis.set_xlabel(r"$Q^2$")
     t_versus_q_squared_axis.set_ylabel(r"$-t$")
     t_versus_q_squared_axis.set_title(r"$-t$ vs. $Q^2$")
 
-    input_space_axis.scatter(x_B, Q2, minus_t, alpha = 0.1, s = 6.4)
+    input_space_axis.scatter(x_bjorken, q_squared, minus_t, alpha = 0.8, s = 6.4)
     input_space_axis.set_xlabel(r"$x_B$")
     input_space_axis.set_ylabel(r"$Q^2$")
     input_space_axis.set_zlabel(r"$-t$")
@@ -297,9 +301,15 @@ def main(
     """
     ## Description:
     Main entry point to the local fitting procedure.
+
+    ## Detailed Description:
+    A "local fit" is a DNN fit to observables in an attempt to back-extract the CFFs at a
+    fixed kinematic setting. In this function, we run several local fits at different kinematic
+    settings. The objective is to extract the CFFs at these various settings so that we can see
+    how the CFFs look at these several different points.
     """
     # (X): Rely on Pandas to correctly read the just-generated .csv file:
-    kinematics_dataframe_path = os.path.join('data', kinematics_dataframe_name)
+    kinematics_dataframe_path = os.path.join(_DIRECTORY_DATA, kinematics_dataframe_name)
 
     if SETTING_DEBUG:
         print(f"> [DEBUG]: Computed path to data .csv file: {kinematics_dataframe_path}")
@@ -307,14 +317,56 @@ def main(
     # (X): Use Pandas' `.read_csv()` method to generate a corresponding DF:
     this_replica_data_set = pd.read_csv(kinematics_dataframe_path)
 
-    unique_sets = get_unique_kinematic_sets(this_replica_data_set)
-    print(unique_sets)
+    unique_sets, number_of_unique_sets = get_unique_kinematic_sets(this_replica_data_set)
+
+    if SETTING_VERBOSE:
+        print(f"> [VERBOSE]: {number_of_unique_sets} unique kinematic settings.")
 
     plot_kinematic_distributions(this_replica_data_set)
+    
+    # (X): Determine devices' GPUs:
+    gpus = tf.config.list_physical_devices('GPU')
 
-    for kinematic_set in unique_sets:
-        print(kinematic_set)
+    # (X): If there exist available GPUs...
+    if gpus:
 
+        # (X): ... begin iteration over each one and...
+        for gpu in gpus:
+
+            # (X): ... enforce growth of memory rather than using all of it:
+            tf.config.experimental.set_memory_growth(gpu, True)
+
+    entire_run_directory, creation_timestamp = create_run_directory(verbose = verbose)
+
+    for kinematic_set_number in unique_sets:
+
+        if SETTING_DEBUG:
+            print(f"> [DEBUG]: Now running local fitting routine on kinematic set #{kinematic_set_number}")
+
+        # (1): Enforce creation of required directory structure:
+        current_replica_run_directory = create_subdirectories(
+            current_run_folder = entire_run_directory,
+            data_file_name = kinematics_dataframe_name,
+            kinematic_set = kinematic_set_number,
+            number_of_replicas = number_of_replicas,
+            timestamp = creation_timestamp,
+            verbose = verbose)
+        
+         # (1): Begin iteratng over the replicas:
+        for replica_index in range(number_of_replicas):
+
+            # (1.1): Obtain the replica number by adding 1 to the index:
+            replica_number = replica_index + 1
+
+            if SETTING_DEBUG:
+                print(f"> [DEBUG]: Computed replica number to be: {replica_number}")
+
+                run_replica(
+                    kinematics_dataframe_name = kinematics_dataframe_name,
+                    kinematic_set_number = kinematic_set_number,
+                    replica_number = replica_number,
+                    job_run_directory = current_replica_run_directory)
+        
 if __name__ == "__main__":
 
     # (1): Create an instance of the ArgumentParser

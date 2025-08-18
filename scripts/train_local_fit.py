@@ -1,4 +1,5 @@
 """
+## Description:
 This script will run the replica method with N replicas to produce
 a *single* local fit of a given observable or set of observables.
 
@@ -66,6 +67,9 @@ from statics.static_strings import _ARGPARSE_DESCRIPTION
 # static_strings > argparse > -d:
 from statics.static_strings import _ARGPARSE_ARGUMENT_INPUT_DATAFILE
 
+# static_strings > argparse > -kin:
+from statics.static_strings import _ARGPARSE_ARGUMENT_KINEMATIC_SET_NUMBER
+
 # static_strings > argparse > -nr:
 from statics.static_strings import _ARGPARSE_ARGUMENT_NUMBER_REPLICAS
 
@@ -75,11 +79,17 @@ from statics.static_strings import _ARGPARSE_ARGUMENT_VERBOSE
 # static_strings > argparse > description for -d:
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_INPUT_DATAFILE
 
+# static_strings > argparse > description for -kin:
+from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_KINEMATIC_SET_NUMBER
+
 # static_strings > argparse > description for -nr
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_NUMBER_REPLICAS
 
 # static_strings > argparse > description for verbose:
 from statics.static_strings import _ARGPARSE_ARGUMENT_DESCRIPTION_VERBOSE
+
+# static_strings > "set"
+from statics.static_strings import _COLUMN_NAME_KINEMATIC_BIN
 
 # static_strings > "k"
 from statics.static_strings import _COLUMN_NAME_LEPTON_MOMENTUM
@@ -101,6 +111,9 @@ from statics.static_strings import _COLUMN_NAME_CROSS_SECTION
 
 # static_strings > "F_err"
 from statics.static_strings import _COLUMN_NAME_CROSS_SECTION_ERROR
+
+# static_string > /analysis
+from statics.static_strings import _DIRECTORY_ANALYSIS
 
 # static_strings > /replicas
 from statics.static_strings import _DIRECTORY_REPLICAS
@@ -433,7 +446,7 @@ def plot_cross_section_with_residuals_and_interpolation(
         label = "Interpolated DNN Prediction")
     
     # (X): Compute the title of the residuals plot:
-    kinematic_settings_string = rf"$Q^2 = {q_squared_value:.2f}\ \mathrm{{GeV}}^2,\ x_{{\mathrm{{B}}}} = {x_bjorken_value:.3f},\ -t = {t_value:.3f}\ \mathrm{{GeV}}^2$"
+    kinematic_settings_string = rf"$Q^2 = {q_squared_value:.2f}\ \mathrm{{GeV}}^2,\ x_{{\mathrm{{B}}}} = {x_bjorken_value:.3f},\ t = {t_value:.3f}\ \mathrm{{GeV}}^2$"
 
     # (X): Set the labels for the residuals plots:
     residuals_axis.set_xlabel(r"Azimuthal Angle $\phi$ [degrees]", fontsize = 16)
@@ -465,18 +478,9 @@ def plot_cross_section_with_residuals_and_interpolation(
     # (X): Close the plots:
     plt.close(interpolation_figure)
     plt.close(residuals_figure)
-
-
-def create_relevant_directories(
-        data_file_name: str,
-        number_of_replicas: int,
-        verbose: bool = False):
-    """
-    ## Description:
-    A function that automates the construction of the several relevant folders
-    used for the analysis of ML output.
-    """
-
+    
+def create_run_directory(verbose: bool = False):
+    
     # (1): We create a *unique* timestamp to name the analysis folder:
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
@@ -490,10 +494,51 @@ def create_relevant_directories(
         print(f"> [DEBUG]: Computed current replica run to be: {current_run_name}")
 
     # (3): Use os.path to construct a path...
-    current_run_folder = os.path.join(f"{os.getcwd()}/analysis", current_run_name)
+    current_run_folder = f"{os.getcwd()}/{_DIRECTORY_ANALYSIS}/{current_run_name}"
 
     if SETTING_DEBUG:
         print(f"> [DEBUG]: Determined run folder to be: {current_run_folder}")
+
+    # (X): Final output: string as `cwd/analysis/replica_run_X/`:
+    return current_run_folder, timestamp
+
+def create_subdirectories(
+        current_run_folder: str,
+        data_file_name: str,
+        kinematic_set: int,
+        number_of_replicas: int,
+        timestamp: str,
+        verbose: bool = False):
+    """
+    ## Description:
+    Create all the required folders to store `.csv` data and `.keras` models for
+    local fits.
+
+    ## Detailed Description:
+    A function that automates the construction of the several relevant folders
+    used for the analysis of ML output. The main folder containing the output obtained
+    by running *this function* is called `replica_run_DATETIME`, where `DATETIME` is 
+    a YMDHMS. It is stored under the parent `analysis` folder. We then store
+    the relevant data for a given kinematic set of the name `kinematic_set_X`. This function then
+    creates two major subfolders: `data` and `replicas`. What is under that kinematic set 
+    directory are several folders: Under `data` is `raw` and `replicas`; under `replicas` 
+    is `fits`, `losses`, `performance`, and `pseudodata`.
+
+    :param str data_file_name: Name of the datafile
+
+    :param str kinematic_set: Number (as str) of the kinematic set
+
+    :param str number_of_replicas: Number of replicas per set
+
+    :param bool verbose: Verbose output
+
+    :return: the message id
+
+    :rtype: str
+
+    ## Notes:
+    1. "YMDHMS" = year-month-day-hour-minute-second. Example: 202505241735551
+    """
 
     # (4): Make a bunch of subdirectories required for analysis:
     for subdirectory in REQUIRED_SUBDIRECTORIES_LIST:
@@ -502,17 +547,17 @@ def create_relevant_directories(
             print(f"> [DEBUG]: Now iterating over subdirectory: {subdirectory}")
 
         # (4.1): Join paths:
-        full_path = os.path.join(current_run_folder, subdirectory)
+        full_path = os.path.join(current_run_folder, f"kinematic_set_{kinematic_set}", subdirectory)
 
         # (4.2): Use `makedirs` to enforce construction of folders:
         os.makedirs(full_path, exist_ok = True)
 
     # (5): Compute the path for the README file that contains infor about the *data*:
-    data_readme_file_path_and_name = os.path.join(current_run_folder, "data/raw/README.md")
+    data_readme_file_path_and_name = os.path.join(current_run_folder, f"kinematic_set_{kinematic_set}", f"{_DIRECTORY_DATA}/{_DIRECTORY_DATA_RAW}/README.md")
 
     # (6): Compute the path for the README file that will contain info about the *replicas*
     # | and other ANN stuff (e.g. hyperparameters):
-    replicas_readme_file_path_and_name = os.path.join(current_run_folder, "data/replicas/README.md")
+    replicas_readme_file_path_and_name = os.path.join(current_run_folder, f"kinematic_set_{kinematic_set}", f"{_DIRECTORY_DATA}/{_DIRECTORY_DATA_REPLICAS}/README.md")
 
     # (7): Open the data README file to prepare to write:
     with open(
@@ -543,15 +588,28 @@ def create_relevant_directories(
     if SETTING_VERBOSE:
         print(f"> [VERBOSE]: Created replica analysis directory at: {current_run_folder}")
 
-    return current_run_folder
+    # (X): Final output: string as `cwd/analysis/replica_run_X/kinematic_set_Y`:
+    total_run_folder = f"{current_run_folder}/kinematic_set_{kinematic_set}"
+
+    return total_run_folder
 
 def run_replica(
-        kinematics_dataframe_name,
-        replica_number,
-        job_run_directory):
+        kinematics_dataframe_name: str,
+        kinematic_set_number : int,
+        replica_number: int,
+        job_run_directory: str):
     """
     ## Description:
-    Later!
+    Run a *single* replica that uses training data from a *single* kinematic
+    setting from a given dataframe.
+
+    :param str kinematics_dataframe_name:
+
+    :param int kinematic_set_number:
+
+    :param int replica_number:
+
+    :param str job_run_directory:
     """
 
     # (1.2): Propose a replica name:
@@ -567,16 +625,37 @@ def run_replica(
         print(f"> [DEBUG]: Computed corresponding replica file name to be: {model_file_name}")
 
     # (X): Rely on Pandas to correctly read the just-generated .csv file:
-    kinematics_dataframe_path = os.path.join('data', kinematics_dataframe_name)
+    kinematics_dataframe_path = os.path.join(_DIRECTORY_DATA, kinematics_dataframe_name)
 
     if SETTING_DEBUG:
         print(f"> [DEBUG]: Computed path to data .csv file: {kinematics_dataframe_path}")
-
+        
     # (X): Use Pandas' `.read_csv()` method to generate a corresponding DF:
     this_replica_data_set = pd.read_csv(kinematics_dataframe_path)
 
     if SETTING_DEBUG:
         print(f"> [DEBUG]: Now printing the Pandas DF head using df.head():\n {this_replica_data_set.head()}")
+
+    if _COLUMN_NAME_AZIMUTHAL_PHI not in this_replica_data_set.columns:
+        raise ValueError("The input DataFrame does not contain a 'set' column.")
+
+    unique_sets = this_replica_data_set[_COLUMN_NAME_KINEMATIC_BIN].unique()
+
+    if kinematic_set_number not in unique_sets:
+        raise ValueError(
+            f"The 'bin' column does not contain the specified kinematic_set_number={kinematic_set_number}. "
+            f"Available values are: {list(unique_sets)}")
+    
+    this_replica_data_set = this_replica_data_set[this_replica_data_set[_COLUMN_NAME_KINEMATIC_BIN] == kinematic_set_number].copy()
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Shape of full dataset: {this_replica_data_set.shape}")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Unique kinematic sets: {unique_sets}")
+
+    if SETTING_DEBUG:
+        print(f"> [DEBUG]: Filtered shape (kinematic set {kinematic_set_number}): {this_replica_data_set.shape}")
 
     # (X): We now compute a *given* replica's DF --- it will *not* be the same as the original DF!
     generated_replica_data = generate_replica_data(pandas_dataframe = this_replica_data_set)
@@ -815,19 +894,28 @@ def run_replica(
     # (X): Closing figures:
     plt.close(evaluation_figure)
 
-def main(
+def local_fitting(
         kinematics_dataframe_name: str,
         number_of_replicas: int,
+        kinematic_set_number: int,
         verbose: bool = False):
     """
     ## Description:
     Main entry point to the local fitting procedure.
+
+    ## Arguments:
+        1. kinematics_dataframe_name
+        2. number_of_replicas
+        3. kinematic_set_number
+        4. verbose
     """
     
     # (1): Enforce creation of required directory structure:
-    current_replica_run_directory = create_relevant_directories(
+    current_replica_run_directory = create_subdirectories(
         data_file_name = kinematics_dataframe_name,
-        number_of_replicas = number_of_replicas)
+        kinematic_set = kinematic_set_number,
+        number_of_replicas = number_of_replicas,
+        verbose = verbose)
     
     # (X): Determine devices' GPUs:
     gpus = tf.config.list_physical_devices('GPU')
@@ -852,6 +940,7 @@ def main(
 
         run_replica(
             kinematics_dataframe_name = kinematics_dataframe_name,
+            kinematic_set_number = kinematic_set_number,
             replica_number = replica_number,
             job_run_directory = current_replica_run_directory)
 
@@ -872,22 +961,22 @@ if __name__ == "__main__":
         type = str,
         required = True,
         help = _ARGPARSE_ARGUMENT_DESCRIPTION_INPUT_DATAFILE)
-    
-    # (3): Enforce the path to the datafile:
-    # parser.add_argument(
-    #     '-kin',
-    #     _ARGPARSE_ARGUMENT_KINEMATIC_SET_NUMBER,
-    #     type = int,
-    #     required = True,
-    #     help = _ARGPARSE_ARGUMENT_DESCRIPTION_KINEMATIC_SET_NUMBER)
 
-    # (4): Enforce the number of replicas:
+    # (3): Enforce the number of replicas:
     parser.add_argument(
         '-nr',
         _ARGPARSE_ARGUMENT_NUMBER_REPLICAS,
         type = int,
         required = True,
         help = _ARGPARSE_ARGUMENT_DESCRIPTION_NUMBER_REPLICAS)
+    
+    # (4): Enforce a kinematic set number:
+    parser.add_argument(
+        '-kin',
+        _ARGPARSE_ARGUMENT_KINEMATIC_SET_NUMBER,
+        type = int,
+        required = True,
+        help = _ARGPARSE_ARGUMENT_DESCRIPTION_KINEMATIC_SET_NUMBER)
 
     # (5): Ask, but don't enforce debugging verbosity:
     parser.add_argument(
@@ -897,9 +986,12 @@ if __name__ == "__main__":
         action = 'store_false',
         help = _ARGPARSE_ARGUMENT_DESCRIPTION_VERBOSE)
     
+    # (6): Use argparse to do the heavy-lifting:
     arguments = parser.parse_args()
 
-    main(
+    # (7): With the parsed arguments, call the central function:
+    local_fitting(
         kinematics_dataframe_name = arguments.input_datafile,
         number_of_replicas = arguments.number_of_replicas,
+        kinematic_set_number = arguments.kinematic_set,
         verbose = arguments.verbose)
